@@ -1,7 +1,7 @@
 Output demo.gif
 
-Set Width 1500
-Set Height 800
+Set Width 1400
+Set Height 750
 Set TypingSpeed 500ms
 Set PlaybackSpeed 5
 

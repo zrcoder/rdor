@@ -2,7 +2,7 @@
 
 hanoi game in terminal
 
-![demo](demo.gif)
+![demo](./demo.gif)
 
 ## Install
 
