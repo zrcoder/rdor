@@ -10,6 +10,8 @@ import (
 )
 
 const (
+	gameName = "Hanoi Tower"
+
 	minDisks = 1
 	maxDisks = 7
 
@@ -58,8 +60,12 @@ var (
 		lipgloss.NewStyle().Background(violet),
 	}
 
+	titleColor          = lipgloss.Color("63")
+	titleForgroundColor = lipgloss.Color("228")
+	titleStyle          = lipgloss.NewStyle().Background(titleColor).Foreground(titleForgroundColor).BorderLeft(true).BorderRight(true).BorderForeground(titleColor).BorderStyle(lipgloss.ThickBorder())
+
 	starStyle  = lipgloss.NewStyle().Foreground(orange)
-	helpStyle  = lipgloss.NewStyle().Foreground(green)
+	infoStyle  = lipgloss.NewStyle().Foreground(green)
 	errorStyle = lipgloss.NewStyle().Foreground(red)
 )
 

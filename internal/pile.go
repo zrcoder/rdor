@@ -41,6 +41,8 @@ func (p *pile) view() string {
 	}
 	if p.overOne {
 		writeDisk()
+	} else {
+		buf.WriteString(blanks(horizontalSepBlanks + pileWidth))
 	}
 	buf.WriteByte('\n')
 	for i := maxDisks; i > 0; i-- {

@@ -116,10 +116,10 @@ func (m *main) View() string {
 	if m.showHelp {
 		m.writeHelpInfo()
 	} else {
+		m.writeHead()
 		if m.setting {
 			m.writeSettingView()
 		} else {
-			m.writeHead()
 			m.writePoles()
 			m.writeGround()
 			m.writeLabels()
@@ -174,27 +174,10 @@ func (m *main) pick(key string) tea.Cmd {
 }
 
 func (m *main) writeHead() {
-	if m.success() {
-		minSteps := 1<<m.disks - 1
-		steps := m.count / 2
-		stars := 5
-		if steps == minSteps {
-			m.buf.WriteString(helpStyle.Render("Fantastic! you earned all the stars! "))
-			m.buf.WriteString(starStyle.Render(strings.Repeat(successCh, stars)))
-		} else {
-			s := fmt.Sprintf("Done! can you complete it in %d step(s)? ", minSteps)
-			m.buf.WriteString(helpStyle.Render(s))
-			if steps-minSteps <= minSteps/2 {
-				stars = 3
-			} else {
-				stars = 1
-			}
-			m.buf.WriteString(starStyle.Render(strings.Repeat(successCh, stars)))
-		}
-	}
+	m.writeBlankLine()
+	m.writeLine(titleStyle.Render(gameName))
 	m.writeBlankLine()
 }
-
 func (m *main) success() bool {
 	last := m.piles[len(m.piles)-1]
 	return len(last.disks) == m.disks
@@ -241,7 +224,25 @@ func (m *main) writeLabels() {
 }
 
 func (m *main) writeState() {
-	if m.err != nil {
+	if m.success() {
+		minSteps := 1<<m.disks - 1
+		steps := m.count / 2
+		stars := 5
+		if steps == minSteps {
+			m.buf.WriteString(infoStyle.Render("Fantastic! you earned all the stars! "))
+			m.buf.WriteString(starStyle.Render(strings.Repeat(successCh, stars)))
+		} else {
+			s := fmt.Sprintf("Done! can you complete it in %d step(s)? ", minSteps)
+			m.buf.WriteString(infoStyle.Render(s))
+			if steps-minSteps <= minSteps/2 {
+				stars = 3
+			} else {
+				stars = 1
+			}
+			m.buf.WriteString(starStyle.Render(strings.Repeat(successCh, stars)))
+		}
+		m.writeBlankLine()
+	} else if m.err != nil {
 		m.writeError(m.err)
 		m.writeBlankLine()
 	} else {
