@@ -1,6 +1,7 @@
 package internal
 
 import (
+	_ "embed"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -16,22 +17,20 @@ const (
 	diskWidthUnit       = 4
 	horizontalSepBlanks = 2
 	successCh           = "★"
-	helpInfo            = `Welcome to hanoi game!
+	poleCh              = "|"
+	diskCh              = " "
+	groundCh            = "o"
+	pole1Label          = "1"
+	pole2Label          = "2"
+	pole3Label          = "3"
 
-The goal is to move all disks from pile 1 to pile 3.
-Each time, we can pick a pile and move the top disk to another pile.
-> Notice that we can only place a disk above a bigger one.
-`
-
-	poleCh     = "|"
-	diskCh     = " "
-	groundCh   = "o"
-	pole1Label = "1"
-	pole2Label = "2"
-	pole3Label = "3"
+	settingHint = "How many disks do you like?"
 )
 
 var (
+	//go:embed helpinfo.md
+	helpInfo string
+
 	poleWidth = 1
 	pileWidth = diskWidthUnit*maxDisks + poleWidth
 

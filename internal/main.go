@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/help"
 	tea "github.com/charmbracelet/bubbletea"
+	md "github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -200,7 +201,7 @@ func (m *main) success() bool {
 }
 
 func (m *main) writeSettingView() {
-	m.writeLine("how many disks do you like? (1-7)")
+	m.writeLine(settingHint)
 	if m.err != nil {
 		m.writeError(m.err)
 	}
@@ -250,14 +251,16 @@ func (m *main) writeState() {
 }
 
 func (m *main) writeKeysHelp() {
-	m.buf.WriteString(m.keysHelp.FullHelpView(m.keys().FullHelp()))
+	m.buf.WriteString(m.keysHelp.View(m.keys()))
 	m.writeBlankLine()
 }
 
 func (m *main) keys() keyMap {
 	if m.showHelp {
+		m.keysHelp.ShowAll = false
 		return keysHealping
 	}
+	m.keysHelp.ShowAll = true
 	if m.setting {
 		return keysSetting
 	}
@@ -265,7 +268,8 @@ func (m *main) keys() keyMap {
 }
 
 func (m *main) writeHelpInfo() {
-	m.buf.WriteString(helpStyle.Render(helpInfo))
+	s, _ := md.Render(helpInfo, "auto")
+	m.buf.WriteString(s)
 	m.writeBlankLine()
 }
 
