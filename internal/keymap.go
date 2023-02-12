@@ -58,12 +58,3 @@ var (
 		key.WithHelp("r:", "Reset"),
 	)
 )
-
-func contains(keys []string, key string) bool {
-	for _, v := range keys {
-		if v == key {
-			return true
-		}
-	}
-	return false
-}

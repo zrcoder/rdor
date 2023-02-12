@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	md "github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
@@ -78,15 +79,15 @@ func (m *main) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.err = msg
 	case tea.KeyMsg:
 		m.err = nil
-		key := msg.String()
-		supportedNum := contains(m.keys().Nums.Keys(), key)
+		keyVal := msg.String()
+		supportedNum := key.Matches(msg, m.keys().Nums)
 		if m.setting && supportedNum {
-			return set(key)
+			return set(keyVal)
 		}
 		if !m.setting && supportedNum {
-			return m, m.pick(key)
+			return m, m.pick(keyVal)
 		}
-		switch key {
+		switch keyVal {
 		case "q":
 			return m, tea.Quit
 		case "h":
