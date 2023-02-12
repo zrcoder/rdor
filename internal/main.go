@@ -25,7 +25,6 @@ type errMsg error
 type main struct {
 	disks    int
 	piles    []*pile
-	keys     keyMap
 	keysHelp help.Model
 
 	setting  bool
@@ -39,7 +38,6 @@ type main struct {
 func New() *main {
 	return &main{
 		setting:  true,
-		keys:     keysSetting,
 		keysHelp: help.New(),
 		buf:      &strings.Builder{},
 	}
@@ -52,7 +50,6 @@ func (m *main) setted(n int) {
 	m.overDisk = nil
 	m.err = nil
 	m.showHelp = false
-	m.keys = keysSetted
 	m.piles = make([]*pile, 3)
 	for i := range m.piles {
 		m.piles[i] = &pile{}
@@ -81,6 +78,13 @@ func (m *main) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		m.err = nil
 		key := msg.String()
+		supportedNum := contains(m.keys().Nums.Keys(), key)
+		if m.setting && supportedNum {
+			return set(key)
+		}
+		if !m.setting && supportedNum {
+			return m, m.pick(key)
+		}
 		switch key {
 		case "q":
 			return m, tea.Quit
@@ -88,19 +92,13 @@ func (m *main) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.showHelp = !m.showHelp
 			return m, nil
 		case "r":
+			if m.showHelp {
+				return m, nil
+			}
 			if m.setting {
 				m.err = errDiskNum
 			} else {
 				m.setting = true
-			}
-		case "1", "2", "3":
-			if m.setting {
-				return set(key)
-			}
-			return m, m.pick(key)
-		case "4", "5", "6", "7":
-			if m.setting {
-				return set(key)
 			}
 		default:
 			if m.setting {
@@ -131,13 +129,21 @@ func (m *main) View() string {
 	return m.buf.String()
 }
 
-func (m *main) pick(id string) tea.Cmd {
+func (m *main) pick(key string) tea.Cmd {
 	if m.success() {
 		return nil
 	}
+	idx := map[string]int{
+		"1": 0,
+		"j": 0,
+		"2": 1,
+		"k": 1,
+		"3": 2,
+		"l": 2,
+	}
+	i := idx[key]
+	curPile := m.piles[i]
 	return func() tea.Msg {
-		i, _ := strconv.Atoi(id)
-		curPile := m.piles[i-1]
 		if m.overDisk == nil && curPile.empty() {
 			return nil
 		}
@@ -244,8 +250,18 @@ func (m *main) writeState() {
 }
 
 func (m *main) writeKeysHelp() {
-	m.buf.WriteString(m.keysHelp.FullHelpView(m.keys.FullHelp()))
+	m.buf.WriteString(m.keysHelp.FullHelpView(m.keys().FullHelp()))
 	m.writeBlankLine()
+}
+
+func (m *main) keys() keyMap {
+	if m.showHelp {
+		return keysHealping
+	}
+	if m.setting {
+		return keysSetting
+	}
+	return keysSetted
 }
 
 func (m *main) writeHelpInfo() {
