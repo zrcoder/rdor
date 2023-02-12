@@ -17,7 +17,7 @@ const (
 	diskWidthUnit       = 4
 	horizontalSepBlanks = 2
 	successCh           = "★"
-	poleCh              = "|"
+	poleCh              = "."
 	diskCh              = " "
 	groundCh            = "o"
 	pole1Label          = "1"

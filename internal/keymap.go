@@ -51,7 +51,7 @@ var (
 	)
 	pilesBinding = key.NewBinding(
 		key.WithKeys("1", "2", "3", "j", "k", "l"),
-		key.WithHelp("1-3(j,k,l):", "Pick the special pile"),
+		key.WithHelp("1-3 / j, k, l :", "Pick the special pile"),
 	)
 	resetBinging = key.NewBinding(
 		key.WithKeys("r"),
