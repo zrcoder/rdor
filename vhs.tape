@@ -1,4 +1,4 @@
-Output demo.gif
+Output hanoi.gif
 
 Set Width 1400
 Set Height 780
