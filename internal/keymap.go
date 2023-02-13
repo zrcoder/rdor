@@ -3,7 +3,8 @@ package internal
 import "github.com/charmbracelet/bubbles/key"
 
 type keyMap struct {
-	Nums  key.Binding
+	Disks key.Binding
+	Piles key.Binding
 	Help  key.Binding
 	Quit  key.Binding
 	Reset key.Binding
@@ -15,26 +16,18 @@ func (k keyMap) ShortHelp() []key.Binding {
 
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Nums},
+		{k.Disks, k.Piles},
 		{k.Help, k.Quit, k.Reset},
 	}
 }
 
 var (
-	keysSetting = keyMap{
-		Nums: disksBinding,
-		Help: helpBinding,
-		Quit: quitBinding,
-	}
-	keysSetted = keyMap{
-		Nums:  pilesBinding,
+	keys = keyMap{
+		Disks: disksBinding,
+		Piles: pilesBinding,
 		Help:  helpBinding,
-		Reset: resetBinging,
 		Quit:  quitBinding,
-	}
-	keysHealping = keyMap{
-		Help: helpBinding,
-		Quit: quitBinding,
+		Reset: resetBinging,
 	}
 
 	helpBinding = key.NewBinding(

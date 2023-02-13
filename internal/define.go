@@ -6,22 +6,22 @@ import (
 	"fmt"
 	"math/rand"
 
+	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 )
 
 const (
-	gameName = "Hanoi Tower"
-
 	minDisks = 1
 	maxDisks = 7
 
 	height              = 11
 	diskWidthUnit       = 4
 	horizontalSepBlanks = 2
-	successCh           = "★"
-	poleCh              = "."
+	starCh              = "★"
+	starOutlineCh       = "☆"
+	poleCh              = "|"
 	diskCh              = " "
-	groundCh            = "o"
+	groundCh            = "‾"
 	pole1Label          = "1"
 	pole2Label          = "2"
 	pole3Label          = "3"
@@ -30,6 +30,8 @@ const (
 )
 
 var (
+	//go:embed head.md
+	head string
 	//go:embed helpinfo.md
 	helpInfo string
 
@@ -60,10 +62,6 @@ var (
 		lipgloss.NewStyle().Background(violet),
 	}
 
-	titleColor          = lipgloss.Color("63")
-	titleForgroundColor = lipgloss.Color("228")
-	titleStyle          = lipgloss.NewStyle().Background(titleColor).Foreground(titleForgroundColor).BorderLeft(true).BorderRight(true).BorderForeground(titleColor).BorderStyle(lipgloss.ThickBorder())
-
 	starStyle  = lipgloss.NewStyle().Foreground(orange)
 	infoStyle  = lipgloss.NewStyle().Foreground(green)
 	errorStyle = lipgloss.NewStyle().Foreground(red)
@@ -73,4 +71,15 @@ func init() {
 	rand.Shuffle(len(diskStyles), func(i, j int) {
 		diskStyles[i], diskStyles[j] = diskStyles[j], diskStyles[i]
 	})
+	md := mdRender()
+	head, _ = md.Render(head)
+	helpInfo, _ = md.Render(helpInfo)
+}
+
+func mdRender() *glamour.TermRenderer {
+	styleConfig := glamour.DarkStyleConfig
+	var noMargin uint = 0
+	styleConfig.Document.Margin = &noMargin
+	render, _ := glamour.NewTermRenderer(glamour.WithStyles(styleConfig))
+	return render
 }

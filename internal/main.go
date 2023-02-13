@@ -9,7 +9,6 @@ import (
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
-	md "github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -27,12 +26,13 @@ type errMsg error
 type main struct {
 	disks    int
 	piles    []*pile
+	keys     keyMap
 	keysHelp help.Model
 
 	setting  bool
 	showHelp bool
 	buf      *strings.Builder
-	count    int
+	steps    int
 	err      error
 	overDisk *disk
 }
@@ -40,75 +40,51 @@ type main struct {
 func New() *main {
 	return &main{
 		setting:  true,
+		keys:     keys,
 		keysHelp: help.New(),
 		buf:      &strings.Builder{},
 	}
 }
 
-func (m *main) setted(n int) {
-	m.setting = false
-	m.disks = n
-	m.count = 0
-	m.overDisk = nil
-	m.err = nil
-	m.showHelp = false
-	m.piles = make([]*pile, 3)
-	for i := range m.piles {
-		m.piles[i] = &pile{}
-	}
-	disks := make([]*disk, n)
-	for i := 1; i <= n; i++ {
-		disks[n-i] = &disk{
-			id:   i,
-			view: diskStyles[i-1].Render(strings.Repeat(diskCh, i*diskWidthUnit)),
-		}
-	}
-	m.piles[0].disks = disks
+func (m *main) Init() tea.Cmd {
+	m.keys.Piles.SetEnabled(false)
+	m.keys.Disks.SetEnabled(true)
+	m.keys.Reset.SetEnabled(false)
+	m.keysHelp.ShowAll = true
+	return nil
 }
 
-func (m *main) Init() tea.Cmd { return nil }
-
 func (m *main) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	set := func(key string) (tea.Model, tea.Cmd) {
-		n, _ := strconv.Atoi(key)
-		m.setted(n)
-		return m, nil
-	}
 	switch msg := msg.(type) {
 	case errMsg:
 		m.err = msg
 	case tea.KeyMsg:
 		m.err = nil
-		keyVal := msg.String()
-		supportedNum := key.Matches(msg, m.keys().Nums)
-		if m.setting && supportedNum {
-			return set(keyVal)
-		}
-		if !m.setting && supportedNum {
-			return m, m.pick(keyVal)
-		}
-		switch keyVal {
-		case "q":
+		switch {
+		case key.Matches(msg, m.keys.Quit):
 			return m, tea.Quit
-		case "h":
+		case key.Matches(msg, m.keys.Help):
 			m.showHelp = !m.showHelp
-			return m, nil
-		case "r":
-			if m.showHelp {
-				return m, nil
-			}
+			m.keysHelp.ShowAll = !m.showHelp
+			m.keys.Reset.SetEnabled(!m.setting && !m.showHelp)
+		case key.Matches(msg, m.keys.Reset):
 			if m.setting {
 				m.err = errDiskNum
 			} else {
 				m.setting = true
 			}
+			return m, m.Init()
+		case key.Matches(msg, m.keys.Disks):
+			n, _ := strconv.Atoi(msg.String())
+			m.setted(n)
+		case key.Matches(msg, m.keys.Piles):
+			return m, m.pick(msg.String())
 		default:
 			if m.setting {
 				m.err = errDiskNum
 			}
 		}
 	}
-
 	return m, nil
 }
 
@@ -128,7 +104,32 @@ func (m *main) View() string {
 		}
 	}
 	m.writeKeysHelp()
+	m.writeBlankLine()
 	return m.buf.String()
+}
+
+func (m *main) setted(n int) {
+	m.setting = false
+	m.disks = n
+	m.steps = 0
+	m.overDisk = nil
+	m.err = nil
+	m.showHelp = false
+	m.keys.Disks.SetEnabled(false)
+	m.keys.Piles.SetEnabled(true)
+	m.keys.Reset.SetEnabled(true)
+	m.piles = make([]*pile, 3)
+	for i := range m.piles {
+		m.piles[i] = &pile{}
+	}
+	disks := make([]*disk, n)
+	for i := 1; i <= n; i++ {
+		disks[n-i] = &disk{
+			id:   i,
+			view: diskStyles[i-1].Render(strings.Repeat(diskCh, i*diskWidthUnit)),
+		}
+	}
+	m.piles[0].disks = disks
 }
 
 func (m *main) pick(key string) tea.Cmd {
@@ -149,7 +150,6 @@ func (m *main) pick(key string) tea.Cmd {
 		if m.overDisk == nil && curPile.empty() {
 			return nil
 		}
-		m.count++
 		if m.overDisk == nil {
 			curPile.overOne = true
 			m.overDisk = curPile.top()
@@ -165,6 +165,7 @@ func (m *main) pick(key string) tea.Cmd {
 		}
 		for _, p := range m.piles {
 			if p.overOne {
+				m.steps++
 				curPile.push(p.pop())
 				p.overOne = false
 				m.overDisk = nil
@@ -175,9 +176,7 @@ func (m *main) pick(key string) tea.Cmd {
 }
 
 func (m *main) writeHead() {
-	m.writeBlankLine()
-	m.writeLine(titleStyle.Render(gameName))
-	m.writeBlankLine()
+	m.buf.WriteString(head)
 }
 func (m *main) success() bool {
 	last := m.piles[len(m.piles)-1]
@@ -227,52 +226,37 @@ func (m *main) writeLabels() {
 func (m *main) writeState() {
 	if m.success() {
 		minSteps := 1<<m.disks - 1
-		steps := m.count / 2
-		stars := 5
-		if steps == minSteps {
+		totalStart := 5
+		if m.steps == minSteps {
 			m.buf.WriteString(infoStyle.Render("Fantastic! you earned all the stars! "))
-			m.buf.WriteString(starStyle.Render(strings.Repeat(successCh, stars)))
+			m.buf.WriteString(starStyle.Render(strings.Repeat(starCh, totalStart)))
 		} else {
 			s := fmt.Sprintf("Done! can you complete it in %d step(s)? ", minSteps)
 			m.buf.WriteString(infoStyle.Render(s))
-			if steps-minSteps <= minSteps/2 {
-				stars = 3
-			} else {
+			stars := 3
+			if m.steps-minSteps > minSteps/2 {
 				stars = 1
 			}
-			m.buf.WriteString(starStyle.Render(strings.Repeat(successCh, stars)))
+			s = strings.Repeat(starCh, stars) + strings.Repeat(starOutlineCh, totalStart-stars)
+			m.buf.WriteString(starStyle.Render(s))
 		}
 		m.writeBlankLine()
 	} else if m.err != nil {
 		m.writeError(m.err)
 		m.writeBlankLine()
 	} else {
-		m.writeLine(fmt.Sprintf("step: %d", m.count/2))
+		m.writeLine(fmt.Sprintf("steps: %d", m.steps))
 	}
 	m.writeBlankLine()
 }
 
 func (m *main) writeKeysHelp() {
-	m.buf.WriteString(m.keysHelp.View(m.keys()))
+	m.buf.WriteString(m.keysHelp.View(m.keys))
 	m.writeBlankLine()
-}
-
-func (m *main) keys() keyMap {
-	if m.showHelp {
-		m.keysHelp.ShowAll = false
-		return keysHealping
-	}
-	m.keysHelp.ShowAll = true
-	if m.setting {
-		return keysSetting
-	}
-	return keysSetted
 }
 
 func (m *main) writeHelpInfo() {
-	s, _ := md.Render(helpInfo, "auto")
-	m.buf.WriteString(s)
-	m.writeBlankLine()
+	m.buf.WriteString(helpInfo)
 }
 
 func (m *main) writeBlankLine() {
