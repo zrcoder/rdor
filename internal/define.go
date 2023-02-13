@@ -32,7 +32,7 @@ const (
 var (
 	//go:embed head.md
 	head string
-	//go:embed helpinfo.md
+	//go:embed helpInfo.md
 	helpInfo string
 
 	poleWidth = 1
