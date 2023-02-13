@@ -231,7 +231,7 @@ func (m *main) writeState() {
 			m.buf.WriteString(infoStyle.Render("Fantastic! you earned all the stars! "))
 			m.buf.WriteString(starStyle.Render(strings.Repeat(starCh, totalStart)))
 		} else {
-			s := fmt.Sprintf("Done! can you complete it in %d step(s)? ", minSteps)
+			s := fmt.Sprintf("Done! Taken %d steps, can you complete it in %d step(s)? ", m.steps, minSteps)
 			m.buf.WriteString(infoStyle.Render(s))
 			stars := 3
 			if m.steps-minSteps > minSteps/2 {

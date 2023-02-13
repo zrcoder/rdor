@@ -16,9 +16,13 @@ go install github.com/zrcoder/hanoi@latest
 
 ## Dependencies
 
-[bubbletea](github.com/charmbracelet/bubbletea)
+[bubbletea](https://github.com/charmbracelet/bubbletea)
 
-[lipgloss](github.com/charmbracelet/lipgloss)
+[bubbles](https://github.com/charmbracelet/bubbles)
+
+[lipgloss](https://github.com/charmbracelet/lipgloss)
+
+[glamour](https://github.com/charmbracelet/glamour )
 
 ## License
 
