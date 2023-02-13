@@ -13,9 +13,7 @@ import (
 )
 
 func Run(args []string) {
-	var err error
-	_, err = tea.NewProgram(New()).Run()
-	if err != nil {
+	if _, err := tea.NewProgram(New()).Run(); err != nil {
 		printError(err)
 		os.Exit(1)
 	}
@@ -68,11 +66,7 @@ func (m *main) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.keysHelp.ShowAll = !m.showHelp
 			m.keys.Reset.SetEnabled(!m.setting && !m.showHelp)
 		case key.Matches(msg, m.keys.Reset):
-			if m.setting {
-				m.err = errDiskNum
-			} else {
-				m.setting = true
-			}
+			m.setting = true
 			return m, m.Init()
 		case key.Matches(msg, m.keys.Disks):
 			n, _ := strconv.Atoi(msg.String())
@@ -122,6 +116,7 @@ func (m *main) setted(n int) {
 	for i := range m.piles {
 		m.piles[i] = &pile{}
 	}
+	shuffleDiskStyles()
 	disks := make([]*disk, n)
 	for i := 1; i <= n; i++ {
 		disks[n-i] = &disk{
@@ -176,7 +171,7 @@ func (m *main) pick(key string) tea.Cmd {
 }
 
 func (m *main) writeHead() {
-	m.buf.WriteString(head)
+	m.buf.WriteString(healpHead)
 }
 func (m *main) success() bool {
 	last := m.piles[len(m.piles)-1]
