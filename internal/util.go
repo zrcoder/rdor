@@ -9,6 +9,7 @@ import (
 
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 )
 
 const (
@@ -140,7 +141,10 @@ func shuffleDiskStyles() {
 }
 
 func mdRender() *glamour.TermRenderer {
-	styleConfig := glamour.DarkStyleConfig
+	styleConfig := glamour.LightStyleConfig
+	if termenv.HasDarkBackground() {
+		styleConfig = glamour.DarkStyleConfig
+	}
 	var noMargin uint = 0
 	styleConfig.Document.Margin = &noMargin
 	render, _ := glamour.NewTermRenderer(glamour.WithStyles(styleConfig))
