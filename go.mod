@@ -1,4 +1,4 @@
-module github.com/zrcoder/hanoi
+module github.com/zrcoder/tgame
 
 go 1.20
 
@@ -8,6 +8,8 @@ require (
 	github.com/charmbracelet/glamour v0.6.0
 	github.com/charmbracelet/lipgloss v0.6.0
 	github.com/muesli/termenv v0.14.0
+	github.com/nsf/termbox-go v1.1.1
+	github.com/zrcoder/hanoi v0.0.0-20230214010934-d3945ce5e7c7
 )
 
 require (

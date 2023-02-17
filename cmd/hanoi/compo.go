@@ -1,8 +1,8 @@
-package internal
+package main
 
 import (
 	"fmt"
-	"os"
+	"math/rand"
 	"strconv"
 	"strings"
 
@@ -10,18 +10,13 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/zrcoder/tgame/pkg/style"
+	"github.com/zrcoder/tgame/pkg/util"
 )
-
-func Run(args []string) {
-	if _, err := tea.NewProgram(New()).Run(); err != nil {
-		printError(err)
-		os.Exit(1)
-	}
-}
 
 type errMsg error
 
-type main struct {
+type hanoi struct {
 	disks    int
 	piles    []*pile
 	keys     keyMap
@@ -35,8 +30,8 @@ type main struct {
 	overDisk *disk
 }
 
-func New() *main {
-	return &main{
+func New() *hanoi {
+	return &hanoi{
 		setting:  true,
 		keys:     keys,
 		keysHelp: help.New(),
@@ -44,7 +39,7 @@ func New() *main {
 	}
 }
 
-func (m *main) Init() tea.Cmd {
+func (m *hanoi) Init() tea.Cmd {
 	m.keys.Piles.SetEnabled(false)
 	m.keys.Disks.SetEnabled(true)
 	m.keys.Reset.SetEnabled(false)
@@ -52,7 +47,7 @@ func (m *main) Init() tea.Cmd {
 	return nil
 }
 
-func (m *main) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *hanoi) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case errMsg:
 		m.err = msg
@@ -82,7 +77,7 @@ func (m *main) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *main) View() string {
+func (m *hanoi) View() string {
 	m.buf.Reset()
 	if m.showHelp {
 		m.writeHelpInfo()
@@ -102,7 +97,7 @@ func (m *main) View() string {
 	return m.buf.String()
 }
 
-func (m *main) setted(n int) {
+func (m *hanoi) setted(n int) {
 	m.setting = false
 	m.disks = n
 	m.steps = 0
@@ -127,7 +122,7 @@ func (m *main) setted(n int) {
 	m.piles[0].disks = disks
 }
 
-func (m *main) pick(key string) tea.Cmd {
+func (m *hanoi) pick(key string) tea.Cmd {
 	if m.success() {
 		return nil
 	}
@@ -170,15 +165,15 @@ func (m *main) pick(key string) tea.Cmd {
 	}
 }
 
-func (m *main) writeHead() {
+func (m *hanoi) writeHead() {
 	m.buf.WriteString(healpHead)
 }
-func (m *main) success() bool {
+func (m *hanoi) success() bool {
 	last := m.piles[len(m.piles)-1]
 	return len(last.disks) == m.disks
 }
 
-func (m *main) writeSettingView() {
+func (m *hanoi) writeSettingView() {
 	m.writeLine(settingHint)
 	if m.err != nil {
 		m.writeError(m.err)
@@ -186,7 +181,7 @@ func (m *main) writeSettingView() {
 	m.writeBlankLine()
 }
 
-func (m *main) writePoles() {
+func (m *hanoi) writePoles() {
 	views := make([]string, len(m.piles))
 	for i, p := range m.piles {
 		views[i] = p.view()
@@ -199,35 +194,35 @@ func (m *main) writePoles() {
 	m.writeBlankLine()
 }
 
-func (m *main) writeGround() {
+func (m *hanoi) writeGround() {
 	m.buf.WriteString(strings.Repeat(groundCh, (pileWidth*3 + horizontalSepBlanks*4)))
 	m.writeBlankLine()
 }
 
-func (m *main) writeLabels() {
+func (m *hanoi) writeLabels() {
 	n := horizontalSepBlanks + (pileWidth-len(pole1Label))/2
-	m.buf.WriteString(blanks(n))
+	m.buf.WriteString(util.Blanks(n))
 	m.buf.WriteString(pole1Label)
 	n = (pileWidth-len(pole1Label))/2 + horizontalSepBlanks + (pileWidth-len(pole2Label))/2
-	m.buf.WriteString(blanks(n))
+	m.buf.WriteString(util.Blanks(n))
 	m.buf.WriteString(pole2Label)
 	n = (pileWidth-len(pole2Label))/2 + horizontalSepBlanks + (pileWidth-len(pole3Label))/2
-	m.buf.WriteString(blanks(n))
+	m.buf.WriteString(util.Blanks(n))
 	m.buf.WriteString(pole3Label)
 	m.writeBlankLine()
 	m.writeBlankLine()
 }
 
-func (m *main) writeState() {
+func (m *hanoi) writeState() {
 	if m.success() {
 		minSteps := 1<<m.disks - 1
 		totalStart := 5
 		if m.steps == minSteps {
-			m.buf.WriteString(infoStyle.Render("Fantastic! you earned all the stars! "))
+			m.buf.WriteString(style.Info.Render("Fantastic! you earned all the stars! "))
 			m.buf.WriteString(starStyle.Render(strings.Repeat(starCh, totalStart)))
 		} else {
 			s := fmt.Sprintf("Done! Taken %d steps, can you complete it in %d step(s)? ", m.steps, minSteps)
-			m.buf.WriteString(infoStyle.Render(s))
+			m.buf.WriteString(style.Info.Render(s))
 			stars := 3
 			if m.steps-minSteps > minSteps/2 {
 				stars = 1
@@ -245,24 +240,88 @@ func (m *main) writeState() {
 	m.writeBlankLine()
 }
 
-func (m *main) writeKeysHelp() {
+func (m *hanoi) writeKeysHelp() {
 	m.buf.WriteString(m.keysHelp.View(m.keys))
 	m.writeBlankLine()
 }
 
-func (m *main) writeHelpInfo() {
+func (m *hanoi) writeHelpInfo() {
 	m.buf.WriteString(helpInfo)
 }
 
-func (m *main) writeBlankLine() {
+func (m *hanoi) writeBlankLine() {
 	m.buf.WriteByte('\n')
 }
 
-func (m *main) writeError(err error) {
-	m.buf.WriteString(errorStyle.Render(err.Error()))
+func (m *hanoi) writeError(err error) {
+	m.buf.WriteString(style.Error.Render(err.Error()))
 }
 
-func (m *main) writeLine(s string) {
+func (m *hanoi) writeLine(s string) {
 	m.buf.WriteString(s)
 	m.writeBlankLine()
+}
+
+type disk struct {
+	id   int
+	view string
+}
+
+type pile struct {
+	disks   []*disk
+	overOne bool
+}
+
+func (s *pile) empty() bool {
+	return len(s.disks) == 0
+}
+func (s *pile) push(d *disk) {
+	s.disks = append(s.disks, d)
+}
+func (s *pile) pop() *disk {
+	n := len(s.disks)
+	res := s.disks[n-1]
+	s.disks = s.disks[:n-1]
+	return res
+}
+func (s *pile) top() *disk {
+	n := len(s.disks)
+	return s.disks[n-1]
+}
+
+func (p *pile) view() string {
+	buf := strings.Builder{}
+	disks := p.disks
+	writeDisk := func() {
+		top := disks[len(disks)-1]
+		buf.WriteString(util.Blanks((pileWidth-poleWidth-diskWidthUnit*top.id)/2 + horizontalSepBlanks))
+		buf.WriteString(top.view)
+		buf.WriteString(util.Blanks((pileWidth - poleWidth - diskWidthUnit*top.id) / 2))
+		disks = disks[:len(disks)-1]
+	}
+	if p.overOne {
+		writeDisk()
+	} else {
+		buf.WriteString(util.Blanks(horizontalSepBlanks + pileWidth))
+	}
+	buf.WriteByte('\n')
+	for i := maxDisks; i > 0; i-- {
+		if i == len(disks) {
+			writeDisk()
+		} else {
+			buf.WriteString(util.Blanks((pileWidth-poleWidth)/2 + horizontalSepBlanks))
+			buf.WriteString(poleCh)
+			buf.WriteString(util.Blanks((pileWidth - poleWidth) / 2))
+		}
+		if i > 1 {
+			buf.WriteByte('\n')
+		}
+	}
+	return buf.String()
+}
+
+func shuffleDiskStyles() {
+	rand.Shuffle(len(diskStyles), func(i, j int) {
+		diskStyles[i], diskStyles[j] = diskStyles[j], diskStyles[i]
+	})
 }

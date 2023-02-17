@@ -1,18 +1,28 @@
-# hanoi
+# tgame
 
-hanoi game in terminal
+Games in terminal
 
-![demo](./hanoi.gif)
+## hanoi
 
-## Install
+![hanoi](./hanoi.gif)
+
+Inspired by [Hanoi-Tower(iOS)](https://github.com/zrcoder/Hanoi-Tower)
+
+## sokoban
+
+Inspired by [sokoban-go](https://github.com/rn2dy/sokoban-go)
+
+## Install a special game
 
 ```shell
-go install github.com/zrcoder/hanoi@latest
+go install github.com/zrcoder/tgame/cmd/{game name}@latest
 ```
 
-## Inspired by
-
-[Hanoi-Tower(iOS)](https://github.com/zrcoder/Hanoi-Tower)
+> for example:
+>
+> ```shell
+> go install github.com/zrcoder/tgame/cmd/hanoi@latest
+> ```
 
 ## Dependencies
 
