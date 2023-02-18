@@ -1,17 +1,14 @@
-package main
+package hanoi
 
 import (
 	_ "embed"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 
-	"github.com/zrcoder/tgame/pkg/print"
 	"github.com/zrcoder/tgame/pkg/style/color"
 	"github.com/zrcoder/tgame/pkg/util"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -66,11 +63,4 @@ func init() {
 	i := strings.Index(helpInfo, "\n")
 	healpHead, _ = md.Render(helpInfo[:i+1])
 	helpInfo, _ = md.Render(helpInfo)
-}
-
-func main() {
-	if _, err := tea.NewProgram(New()).Run(); err != nil {
-		print.Errorln(err)
-		os.Exit(1)
-	}
 }

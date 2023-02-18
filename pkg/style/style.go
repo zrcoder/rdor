@@ -6,6 +6,6 @@ import (
 )
 
 var (
-	Info  = lipgloss.NewStyle().Foreground(color.Green)
-	Error = lipgloss.NewStyle().Foreground(color.Red)
+	Success = lipgloss.NewStyle().Foreground(color.Green)
+	Error   = lipgloss.NewStyle().Foreground(color.Red)
 )

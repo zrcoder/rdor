@@ -12,17 +12,11 @@ Inspired by [Hanoi-Tower(iOS)](https://github.com/zrcoder/Hanoi-Tower)
 
 Inspired by [sokoban-go](https://github.com/rn2dy/sokoban-go)
 
-## Install a special game
+## Install
 
 ```shell
-go install github.com/zrcoder/tgame/cmd/{game name}@latest
+go install github.com/zrcoder/tgame@latest
 ```
-
-> for example:
->
-> ```shell
-> go install github.com/zrcoder/tgame/cmd/hanoi@latest
-> ```
 
 ## Dependencies
 

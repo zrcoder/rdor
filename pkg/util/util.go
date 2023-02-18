@@ -12,8 +12,7 @@ func GetMarkdowdRender() *glamour.TermRenderer {
 	if termenv.HasDarkBackground() {
 		styleConfig = glamour.DarkStyleConfig
 	}
-	var noMargin uint = 0
-	styleConfig.Document.Margin = &noMargin
+	styleConfig.Document.Margin = nil
 	render, _ := glamour.NewTermRenderer(glamour.WithStyles(styleConfig))
 	return render
 }

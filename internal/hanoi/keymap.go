@@ -1,6 +1,8 @@
-package main
+package hanoi
 
-import "github.com/charmbracelet/bubbles/key"
+import (
+	"github.com/charmbracelet/bubbles/key"
+)
 
 type keyMap struct {
 	Disks key.Binding
@@ -11,13 +13,13 @@ type keyMap struct {
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Help, k.Quit}
+	return []key.Binding{k.Quit, k.Help}
 }
 
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Disks, k.Piles},
-		{k.Help, k.Quit, k.Reset},
+		{k.Reset, k.Quit, k.Help},
 	}
 }
 
@@ -44,7 +46,7 @@ var (
 	)
 	pilesBinding = key.NewBinding(
 		key.WithKeys("1", "2", "3", "j", "k", "l"),
-		key.WithHelp("1-3 / j, k, l :", "Pick the special pile"),
+		key.WithHelp("1-3 / j,k,l:", "Pick the special pile"),
 	)
 	resetBinging = key.NewBinding(
 		key.WithKeys("r"),
