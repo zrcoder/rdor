@@ -5,51 +5,33 @@ import (
 )
 
 type keyMap struct {
-	Disks key.Binding
-	Piles key.Binding
-	Help  key.Binding
-	Quit  key.Binding
-	Reset key.Binding
+	Disks    key.Binding
+	Piles    key.Binding
+	Next     key.Binding
+	Previous key.Binding
+	Reset    key.Binding
+	Set      key.Binding
+	Quit     key.Binding
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Quit, k.Help}
+	return []key.Binding{k.Disks, k.Piles, k.Set, k.Quit}
 }
 
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Disks, k.Piles},
-		{k.Reset, k.Quit, k.Help},
+		{k.Disks, k.Piles, k.Reset},
+		{k.Next, k.Previous},
+		{k.Set, k.Quit},
 	}
 }
 
-var (
-	keys = keyMap{
-		Disks: disksBinding,
-		Piles: pilesBinding,
-		Help:  helpBinding,
-		Quit:  quitBinding,
-		Reset: resetBinging,
-	}
-
-	helpBinding = key.NewBinding(
-		key.WithKeys("h"),
-		key.WithHelp("h:", "Toggle help"),
-	)
-	quitBinding = key.NewBinding(
-		key.WithKeys("q"),
-		key.WithHelp("q:", "Quit"),
-	)
-	disksBinding = key.NewBinding(
-		key.WithKeys("1", "2", "3", "4", "5", "6", "7"),
-		key.WithHelp("1-7:", "Set the total disks"),
-	)
-	pilesBinding = key.NewBinding(
-		key.WithKeys("1", "2", "3", "j", "k", "l"),
-		key.WithHelp("1-3 / j,k,l:", "Pick the special pile"),
-	)
-	resetBinging = key.NewBinding(
-		key.WithKeys("r"),
-		key.WithHelp("r:", "Reset"),
-	)
-)
+var keys = keyMap{
+	Disks:    key.NewBinding(key.WithKeys("1", "2", "3", "4", "5", "6", "7"), key.WithHelp("1-7", "set disks")),
+	Piles:    key.NewBinding(key.WithKeys("1", "2", "3", "j", "k", "l"), key.WithHelp("1-3/j,k,l", "pick a pile")),
+	Next:     key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "next")),
+	Previous: key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "previous")),
+	Reset:    key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "reset")),
+	Set:      key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "set")),
+	Quit:     key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")),
+}

@@ -1,20 +1,20 @@
 package hanoi
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"strconv"
 	"strings"
 
+	"github.com/zrcoder/tgame/pkg/style"
+	"github.com/zrcoder/tgame/pkg/style/color"
+
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/zrcoder/tgame/pkg/style"
-	"github.com/zrcoder/tgame/pkg/util"
 )
-
-type errMsg error
 
 type hanoi struct {
 	disks    int
@@ -23,27 +23,74 @@ type hanoi struct {
 	keysHelp help.Model
 
 	setting  bool
-	showHelp bool
 	buf      *strings.Builder
 	steps    int
 	err      error
 	overDisk *disk
 }
 
-func New() *hanoi {
-	return &hanoi{
-		setting:  true,
-		keys:     keys,
-		keysHelp: help.New(),
-		buf:      &strings.Builder{},
-	}
+func New() *hanoi { return &hanoi{} }
+
+type errMsg error
+
+type disk struct {
+	id   int
+	view string
 }
 
+type pile struct {
+	disks   []*disk
+	overOne bool
+}
+
+const (
+	minDisks     = 1
+	maxDisks     = 7
+	defaultDisks = 3
+
+	diskWidthUnit       = 4
+	horizontalSepBlanks = 2
+	starCh              = "★"
+	starOutlineCh       = "☆"
+	poleCh              = "|"
+	diskCh              = " "
+	groundCh            = "‾"
+	pole1Label          = "1"
+	pole2Label          = "2"
+	pole3Label          = "3"
+
+	settingHint = "How many disks do you like?"
+)
+
+var (
+	title    = style.Title.Render("Hanoi")
+	helpInfo = style.Help.Render("Our goal is to move all disks from pile `1` to pile `3`.")
+
+	poleWidth = 1
+	pileWidth = diskWidthUnit*maxDisks + poleWidth
+
+	errDiskNum  = fmt.Errorf("disks number must be an integer between %d to %d", minDisks, maxDisks)
+	errCantMove = errors.New("can not move the disk above a smaller one")
+
+	diskStyles = [maxDisks]lipgloss.Style{
+		lipgloss.NewStyle().Background(color.Red),
+		lipgloss.NewStyle().Background(color.Orange),
+		lipgloss.NewStyle().Background(color.Yellow),
+		lipgloss.NewStyle().Background(color.Green),
+		lipgloss.NewStyle().Background(color.Blue),
+		lipgloss.NewStyle().Background(color.Indigo),
+		lipgloss.NewStyle().Background(color.Violet),
+	}
+
+	starStyle = lipgloss.NewStyle().Foreground(color.Orange)
+)
+
 func (h *hanoi) Init() tea.Cmd {
-	h.keys.Piles.SetEnabled(false)
-	h.keys.Disks.SetEnabled(true)
-	h.keys.Reset.SetEnabled(false)
+	h.keys = keys
+	h.keysHelp = help.New()
 	h.keysHelp.ShowAll = true
+	h.buf = &strings.Builder{}
+	h.setted(defaultDisks)
 	return nil
 }
 
@@ -56,15 +103,24 @@ func (h *hanoi) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, h.keys.Quit):
 			return h, tea.Quit
-		case key.Matches(msg, h.keys.Help):
-			h.showHelp = !h.showHelp
-			h.keysHelp.ShowAll = !h.showHelp
-			h.keys.Reset.SetEnabled(!h.setting && !h.showHelp)
-			h.keys.Disks.SetEnabled(h.setting && !h.showHelp)
-			h.keys.Piles.SetEnabled(!h.setting && !h.showHelp)
-		case key.Matches(msg, h.keys.Reset):
+		case key.Matches(msg, h.keys.Set):
 			h.setting = true
-			return h, h.Init()
+			h.keys.Disks.SetEnabled(true)
+			h.keys.Piles.SetEnabled(false)
+			h.keys.Set.SetEnabled(false)
+			h.keys.Next.SetEnabled(false)
+			h.keys.Previous.SetEnabled(false)
+			h.keys.Reset.SetEnabled(false)
+		case key.Matches(msg, h.keys.Reset):
+			h.setted(h.disks)
+		case key.Matches(msg, h.keys.Next):
+			if h.disks+1 <= maxDisks {
+				h.setted(h.disks + 1)
+			}
+		case key.Matches(msg, h.keys.Previous):
+			if h.disks-1 > 0 {
+				h.setted(h.disks - 1)
+			}
 		case key.Matches(msg, h.keys.Disks):
 			n, _ := strconv.Atoi(msg.String())
 			h.setted(n)
@@ -81,21 +137,16 @@ func (h *hanoi) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (h *hanoi) View() string {
 	h.buf.Reset()
-	if h.showHelp {
-		h.writeHelpInfo()
-	} else {
-		h.writeHead()
-		if h.setting {
-			h.writeSettingView()
-		} else {
-			h.writePoles()
-			h.writeGround()
-			h.writeLabels()
-			h.writeState()
-		}
+	h.writeHead()
+	h.writePoles()
+	h.writeGround()
+	h.writeLabels()
+	h.writeState()
+	h.writeHelpInfo()
+	if h.setting {
+		h.writeSettingView()
 	}
 	h.writeKeysHelp()
-	h.writeBlankLine()
 	return h.buf.String()
 }
 
@@ -105,9 +156,11 @@ func (h *hanoi) setted(n int) {
 	h.steps = 0
 	h.overDisk = nil
 	h.err = nil
-	h.showHelp = false
 	h.keys.Disks.SetEnabled(false)
 	h.keys.Piles.SetEnabled(true)
+	h.keys.Set.SetEnabled(true)
+	h.keys.Next.SetEnabled(true)
+	h.keys.Previous.SetEnabled(true)
 	h.keys.Reset.SetEnabled(true)
 	h.piles = make([]*pile, 3)
 	for i := range h.piles {
@@ -168,11 +221,7 @@ func (h *hanoi) pick(key string) tea.Cmd {
 }
 
 func (h *hanoi) writeHead() {
-	h.buf.WriteString(healpHead)
-}
-func (h *hanoi) success() bool {
-	last := h.piles[len(h.piles)-1]
-	return len(last.disks) == h.disks
+	h.buf.WriteString("\n" + title + "\n")
 }
 
 func (h *hanoi) writeSettingView() {
@@ -203,13 +252,13 @@ func (h *hanoi) writeGround() {
 
 func (h *hanoi) writeLabels() {
 	n := horizontalSepBlanks + (pileWidth-len(pole1Label))/2
-	h.buf.WriteString(util.Blanks(n))
+	h.buf.WriteString(strings.Repeat(" ", n))
 	h.buf.WriteString(pole1Label)
 	n = (pileWidth-len(pole1Label))/2 + horizontalSepBlanks + (pileWidth-len(pole2Label))/2
-	h.buf.WriteString(util.Blanks(n))
+	h.buf.WriteString(strings.Repeat(" ", n))
 	h.buf.WriteString(pole2Label)
 	n = (pileWidth-len(pole2Label))/2 + horizontalSepBlanks + (pileWidth-len(pole3Label))/2
-	h.buf.WriteString(util.Blanks(n))
+	h.buf.WriteString(strings.Repeat(" ", n))
 	h.buf.WriteString(pole3Label)
 	h.writeBlankLine()
 	h.writeBlankLine()
@@ -233,26 +282,18 @@ func (h *hanoi) writeState() {
 			h.buf.WriteString(starStyle.Render(s))
 		}
 		h.writeBlankLine()
-	} else if h.err != nil {
-		h.writeError(h.err)
-		h.writeBlankLine()
 	} else {
 		h.writeLine(fmt.Sprintf("steps: %d", h.steps))
 	}
 	h.writeBlankLine()
 }
 
-func (h *hanoi) writeKeysHelp() {
-	h.buf.WriteString(h.keysHelp.View(h.keys))
-	h.writeBlankLine()
-}
-
 func (h *hanoi) writeHelpInfo() {
-	h.buf.WriteString(helpInfo)
+	h.buf.WriteString(helpInfo + "\n\n")
 }
 
-func (h *hanoi) writeBlankLine() {
-	h.buf.WriteByte('\n')
+func (h *hanoi) writeKeysHelp() {
+	h.buf.WriteString(h.keysHelp.View(h.keys) + "\n\n")
 }
 
 func (h *hanoi) writeError(err error) {
@@ -264,14 +305,13 @@ func (h *hanoi) writeLine(s string) {
 	h.writeBlankLine()
 }
 
-type disk struct {
-	id   int
-	view string
+func (h *hanoi) writeBlankLine() {
+	h.buf.WriteByte('\n')
 }
 
-type pile struct {
-	disks   []*disk
-	overOne bool
+func (h *hanoi) success() bool {
+	last := h.piles[len(h.piles)-1]
+	return len(last.disks) == h.disks
 }
 
 func (p *pile) empty() bool {
@@ -296,24 +336,24 @@ func (p *pile) view() string {
 	disks := p.disks
 	writeDisk := func() {
 		top := disks[len(disks)-1]
-		buf.WriteString(util.Blanks((pileWidth-poleWidth-diskWidthUnit*top.id)/2 + horizontalSepBlanks))
+		buf.WriteString(strings.Repeat(" ", (pileWidth-poleWidth-diskWidthUnit*top.id)/2+horizontalSepBlanks))
 		buf.WriteString(top.view)
-		buf.WriteString(util.Blanks((pileWidth - poleWidth - diskWidthUnit*top.id) / 2))
+		buf.WriteString(strings.Repeat(" ", (pileWidth-poleWidth-diskWidthUnit*top.id)/2))
 		disks = disks[:len(disks)-1]
 	}
 	if p.overOne {
 		writeDisk()
 	} else {
-		buf.WriteString(util.Blanks(horizontalSepBlanks + pileWidth))
+		buf.WriteString(strings.Repeat(" ", horizontalSepBlanks+pileWidth))
 	}
 	buf.WriteByte('\n')
 	for i := maxDisks; i > 0; i-- {
 		if i == len(disks) {
 			writeDisk()
 		} else {
-			buf.WriteString(util.Blanks((pileWidth-poleWidth)/2 + horizontalSepBlanks))
+			buf.WriteString(strings.Repeat(" ", (pileWidth-poleWidth)/2+horizontalSepBlanks))
 			buf.WriteString(poleCh)
-			buf.WriteString(util.Blanks((pileWidth - poleWidth) / 2))
+			buf.WriteString(strings.Repeat(" ", (pileWidth-poleWidth)/2))
 		}
 		if i > 1 {
 			buf.WriteByte('\n')

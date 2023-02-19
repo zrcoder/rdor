@@ -4,7 +4,6 @@ import (
 	"embed"
 	"errors"
 	"fmt"
-	_ "fmt"
 	"strconv"
 	"strings"
 
@@ -18,19 +17,29 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-type Direction struct {
+type sokoban struct {
+	level    int
+	keys     keyMap
+	keysHelp help.Model
+	input    textinput.Model
+
+	origin [][]rune
+	main   [][]rune
+	err    error
+	y      int
+	x      int
+	buf    *strings.Builder
+}
+
+func New() *sokoban { return &sokoban{} }
+
+type direction struct {
 	x, y int
 }
 
-var (
-	up    = Direction{0, -1}
-	down  = Direction{0, 1}
-	left  = Direction{-1, 0}
-	right = Direction{1, 0}
-)
-
 const (
-	maxLevel = 51
+	maxLevel         = 51
+	inputPlaceholder = "1-51"
 
 	wall      = '#'
 	me        = '@'
@@ -42,6 +51,12 @@ const (
 )
 
 var (
+	title    = style.Title.Render("Sokoban")
+	helpInfo = style.Help.Render("Our goal is to push all the boxes into the slots without been stuck somewhere.")
+
+	//go:embed levels
+	levelsFS embed.FS
+
 	blocks = map[rune]string{
 		wall:      lipgloss.NewStyle().Background(color.Orange).Render(" = "),
 		me:        " ◉ ",
@@ -51,53 +66,33 @@ var (
 		boxInSlot: lipgloss.NewStyle().Background(color.Green).Render("   "),
 		meInSlot:  lipgloss.NewStyle().Background(color.Violet).Render(" ◉ "),
 	}
+
+	up    = direction{0, -1}
+	down  = direction{0, 1}
+	left  = direction{-1, 0}
+	right = direction{1, 0}
 )
 
-//go:embed levels
-var levelsFS embed.FS
-
-type sokoban struct {
-	level    int
-	keys     keyMap
-	keysHelp help.Model
-	input    textinput.Model
-
-	showHelp bool
-	origin   [][]rune
-	main     [][]rune
-	err      error
-	y        int
-	x        int
-	debug    bool
+func (s *sokoban) Init() tea.Cmd {
+	s.keys = keys
+	s.keysHelp = help.New()
+	s.input = textinput.New()
+	s.buf = &strings.Builder{}
+	s.keysHelp.ShowAll = true
+	s.loadLever()
+	s.input.Placeholder = inputPlaceholder
+	return nil
 }
-
-func New() *sokoban {
-	res := &sokoban{
-		keys:     keys,
-		keysHelp: help.New(),
-		input:    textinput.New(),
-	}
-	res.keysHelp.ShowAll = true
-	res.loadLever()
-	res.input.Placeholder = "1-51"
-	return res
-}
-
-func (s *sokoban) Init() tea.Cmd { return nil }
 
 func (s *sokoban) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	s.input, cmd = s.input.Update(msg)
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		s.err = nil
 		switch {
 		case key.Matches(msg, s.keys.Quit):
 			return s, tea.Quit
-		case key.Matches(msg, s.keys.Help):
-			s.showHelp = !s.showHelp
-			s.keysHelp.ShowAll = !s.showHelp
-		case key.Matches(msg, s.keys.Debug):
-			s.debug = !s.debug
 		case key.Matches(msg, s.keys.Up):
 			s.move(up)
 		case key.Matches(msg, s.keys.Left):
@@ -122,7 +117,7 @@ func (s *sokoban) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				n, err := strconv.Atoi(s.input.Value())
 				s.input.SetValue("")
 				if err != nil {
-					s.err = err
+					s.err = errors.New("invalid number")
 					return s, nil
 				}
 				if n < 1 || n > maxLevel+1 {
@@ -138,34 +133,32 @@ func (s *sokoban) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (s *sokoban) View() string {
-	buf := strings.Builder{}
-	buf.WriteString(fmt.Sprintf("-- Sokoban Level %d of %d --\n", s.level+1, maxLevel))
-
-	if s.debug {
-		for _, line := range s.main {
-			buf.WriteString(string(line))
+	s.buf.Reset()
+	s.buf.WriteString("\n" + title + "\n\n")
+	for _, line := range s.main {
+		for _, v := range line {
+			s.buf.WriteString(blocks[v])
 		}
-	} else if s.input.Focused() {
-		buf.WriteString("which level do you like?\n")
-		buf.WriteString(s.input.View())
-		buf.WriteByte('\n')
-	} else {
-		for _, line := range s.main {
-			for _, v := range line {
-				buf.WriteString(blocks[v])
-			}
-			buf.WriteByte('\n')
-		}
-		if s.success() {
-			buf.WriteString(style.Success.Render("Success!"))
-		}
+		s.buf.WriteByte('\n')
 	}
+	s.buf.WriteString(style.Help.Render(fmt.Sprintf("- %d/%d - ", s.level+1, maxLevel)))
+	if s.success() {
+		s.buf.WriteString(style.Success.Render("Success!"))
+	}
+	s.buf.WriteByte('\n')
 
-	buf.WriteByte('\n')
-	buf.WriteString(s.keysHelp.View(s.keys))
-	buf.WriteByte('\n')
-
-	return buf.String()
+	if s.input.Focused() {
+		s.buf.WriteString("\npick a level\n")
+		s.buf.WriteString(s.input.View())
+	} else {
+		s.buf.WriteString("\n" + helpInfo + "\n")
+		if s.err != nil {
+			s.buf.WriteString("\n" + style.Error.Render(s.err.Error()) + "\n")
+		}
+		s.buf.WriteString("\n" + s.keysHelp.View(s.keys))
+	}
+	s.buf.WriteByte('\n')
+	return s.buf.String()
 }
 
 func (s *sokoban) loadLever() {
@@ -201,7 +194,7 @@ func max(a, b int) int {
 	return b
 }
 
-func (s *sokoban) move(d Direction) {
+func (s *sokoban) move(d direction) {
 	y, x := s.y+d.y, s.x+d.x
 	if s.outRange(y, x) {
 		return

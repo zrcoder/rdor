@@ -3,6 +3,7 @@ package color
 import "github.com/charmbracelet/lipgloss"
 
 var (
+	White = lipgloss.Color("#ffffff")
 	// rainbow colors
 	Red    = lipgloss.Color("#ff0000")
 	Orange = lipgloss.Color("#ffa500")
