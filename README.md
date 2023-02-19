@@ -2,15 +2,19 @@
 
 Games in terminal
 
-## hanoi
+## Hanoi
 
 ![hanoi](./hanoi.gif)
 
 Inspired by [Hanoi-Tower(iOS)](https://github.com/zrcoder/Hanoi-Tower)
 
-## sokoban
+## Sokoban
 
 Inspired by [sokoban-go](https://github.com/rn2dy/sokoban-go)
+
+## Maze
+
+Leveles cloned from [mazefiles](https://github.com/micromouseonline/mazefiles)
 
 ## Install
 
@@ -25,8 +29,6 @@ go install github.com/zrcoder/tgame@latest
 [bubbles](https://github.com/charmbracelet/bubbles)
 
 [lipgloss](https://github.com/charmbracelet/lipgloss)
-
-[glamour](https://github.com/charmbracelet/glamour )
 
 ## License
 

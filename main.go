@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/zrcoder/tgame/internal/hanoi"
+	"github.com/zrcoder/tgame/internal/maze"
 	"github.com/zrcoder/tgame/internal/sokoban"
 	"github.com/zrcoder/tgame/pkg/style"
 	"github.com/zrcoder/tgame/pkg/style/color"
@@ -15,10 +16,12 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+//go:generate go run ./internal/maze/levels/tool
 func main() {
 	items := []list.Item{
-		item{name: "hanoi", instance: hanoi.New()},
-		item{name: "sokoban", instance: sokoban.New()},
+		item{name: "Hanoi", instance: hanoi.New()},
+		item{name: "Sokoban", instance: sokoban.New()},
+		item{name: "Maze", instance: maze.New()},
 	}
 	const listHeight = 14
 	const defaultWidth = 20

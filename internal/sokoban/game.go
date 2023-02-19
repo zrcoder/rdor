@@ -18,6 +18,9 @@ import (
 )
 
 type sokoban struct {
+	title    string
+	helpInfo string
+
 	level    int
 	keys     keyMap
 	keysHelp help.Model
@@ -31,7 +34,7 @@ type sokoban struct {
 	buf    *strings.Builder
 }
 
-func New() *sokoban { return &sokoban{} }
+func New() tea.Model { return &sokoban{} }
 
 type direction struct {
 	x, y int
@@ -51,8 +54,6 @@ const (
 )
 
 var (
-	title    = style.Title.Render("Sokoban")
-	helpInfo = style.Help.Render("Our goal is to push all the boxes into the slots without been stuck somewhere.")
 
 	//go:embed levels
 	levelsFS embed.FS
@@ -74,6 +75,9 @@ var (
 )
 
 func (s *sokoban) Init() tea.Cmd {
+	s.title = style.Title.Render("Sokoban")
+	s.helpInfo = style.Help.Render("Our goal is to push all the boxes into the slots without been stuck somewhere.")
+
 	s.keys = keys
 	s.keysHelp = help.New()
 	s.input = textinput.New()
@@ -134,7 +138,7 @@ func (s *sokoban) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (s *sokoban) View() string {
 	s.buf.Reset()
-	s.buf.WriteString("\n" + title + "\n\n")
+	s.buf.WriteString("\n" + s.title + "\n\n")
 	for _, line := range s.main {
 		for _, v := range line {
 			s.buf.WriteString(blocks[v])
@@ -151,7 +155,7 @@ func (s *sokoban) View() string {
 		s.buf.WriteString("\npick a level\n")
 		s.buf.WriteString(s.input.View())
 	} else {
-		s.buf.WriteString("\n" + helpInfo + "\n")
+		s.buf.WriteString("\n" + s.helpInfo + "\n")
 		if s.err != nil {
 			s.buf.WriteString("\n" + style.Error.Render(s.err.Error()) + "\n")
 		}
@@ -196,7 +200,7 @@ func max(a, b int) int {
 
 func (s *sokoban) move(d direction) {
 	y, x := s.y+d.y, s.x+d.x
-	if s.outRange(y, x) {
+	if s.outBound(y, x) {
 		return
 	}
 	switch s.main[y][x] {
@@ -204,7 +208,7 @@ func (s *sokoban) move(d direction) {
 		s.moveMe(y, x)
 	case box, boxInSlot:
 		nx, ny := x+d.x, y+d.y
-		if s.outRange(ny, nx) {
+		if s.outBound(ny, nx) {
 			return
 		}
 		if s.main[ny][nx] == blank || s.main[ny][nx] == slot {
@@ -214,8 +218,8 @@ func (s *sokoban) move(d direction) {
 	}
 }
 
-func (s *sokoban) outRange(y, x int) bool {
-	return y < 0 || y >= len(s.main) || x < 0 || x >= len(s.main[0])
+func (s *sokoban) outBound(y, x int) bool {
+	return y < 0 || y >= len(s.main) || x < 0 || x >= len(s.main[y])
 }
 
 func (s *sokoban) moveMe(y, x int) {

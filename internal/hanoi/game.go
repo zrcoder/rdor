@@ -17,6 +17,8 @@ import (
 )
 
 type hanoi struct {
+	title    string
+	helpInfo string
 	disks    int
 	piles    []*pile
 	keys     keyMap
@@ -29,7 +31,7 @@ type hanoi struct {
 	overDisk *disk
 }
 
-func New() *hanoi { return &hanoi{} }
+func New() tea.Model { return &hanoi{} }
 
 type errMsg error
 
@@ -50,25 +52,22 @@ const (
 
 	diskWidthUnit       = 4
 	horizontalSepBlanks = 2
-	starCh              = "★"
-	starOutlineCh       = "☆"
-	poleCh              = "|"
-	diskCh              = " "
-	groundCh            = "‾"
-	pole1Label          = "1"
-	pole2Label          = "2"
-	pole3Label          = "3"
+	poleWidth           = 1
+
+	starCh        = "★"
+	starOutlineCh = "☆"
+	poleCh        = "|"
+	diskCh        = " "
+	groundCh      = "‾"
+	pole1Label    = "1"
+	pole2Label    = "2"
+	pole3Label    = "3"
 
 	settingHint = "How many disks do you like?"
 )
 
 var (
-	title    = style.Title.Render("Hanoi")
-	helpInfo = style.Help.Render("Our goal is to move all disks from pile `1` to pile `3`.")
-
-	poleWidth = 1
-	pileWidth = diskWidthUnit*maxDisks + poleWidth
-
+	pileWidth   = diskWidthUnit*maxDisks + poleWidth
 	errDiskNum  = fmt.Errorf("disks number must be an integer between %d to %d", minDisks, maxDisks)
 	errCantMove = errors.New("can not move the disk above a smaller one")
 
@@ -86,6 +85,8 @@ var (
 )
 
 func (h *hanoi) Init() tea.Cmd {
+	h.title = style.Title.Render("Hanoi")
+	h.helpInfo = style.Help.Render("Our goal is to move all disks from pile `1` to pile `3`.")
 	h.keys = keys
 	h.keysHelp = help.New()
 	h.keysHelp.ShowAll = true
@@ -221,7 +222,7 @@ func (h *hanoi) pick(key string) tea.Cmd {
 }
 
 func (h *hanoi) writeHead() {
-	h.buf.WriteString("\n" + title + "\n")
+	h.buf.WriteString("\n" + h.title + "\n")
 }
 
 func (h *hanoi) writeSettingView() {
@@ -289,7 +290,7 @@ func (h *hanoi) writeState() {
 }
 
 func (h *hanoi) writeHelpInfo() {
-	h.buf.WriteString(helpInfo + "\n\n")
+	h.buf.WriteString(h.helpInfo + "\n\n")
 }
 
 func (h *hanoi) writeKeysHelp() {
