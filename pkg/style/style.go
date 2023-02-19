@@ -2,7 +2,7 @@ package style
 
 import (
 	"github.com/charmbracelet/lipgloss"
-	"github.com/zrcoder/tgame/pkg/style/color"
+	"github.com/zrcoder/rdor/pkg/style/color"
 )
 
 var (

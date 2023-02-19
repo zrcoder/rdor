@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/zrcoder/tgame/pkg/style"
-	"github.com/zrcoder/tgame/pkg/style/color"
+	"github.com/zrcoder/rdor/pkg/style"
+	"github.com/zrcoder/rdor/pkg/style/color"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"

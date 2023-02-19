@@ -5,11 +5,11 @@ import (
 	"io"
 	"os"
 
-	"github.com/zrcoder/tgame/internal/hanoi"
-	"github.com/zrcoder/tgame/internal/maze"
-	"github.com/zrcoder/tgame/internal/sokoban"
-	"github.com/zrcoder/tgame/pkg/style"
-	"github.com/zrcoder/tgame/pkg/style/color"
+	"github.com/zrcoder/rdor/internal/hanoi"
+	"github.com/zrcoder/rdor/internal/maze"
+	"github.com/zrcoder/rdor/internal/sokoban"
+	"github.com/zrcoder/rdor/pkg/style"
+	"github.com/zrcoder/rdor/pkg/style/color"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -25,8 +25,8 @@ func main() {
 	}
 	const listHeight = 14
 	const defaultWidth = 20
-	m := tgame{list: list.New(items, itemDelegate{}, defaultWidth, listHeight)}
-	m.list.Title = "Welcome to `tgame`"
+	m := rdor{list: list.New(items, itemDelegate{}, defaultWidth, listHeight)}
+	m.list.Title = "Welcome to `rdor`"
 	m.list.Styles.Title = style.Title
 	m.list.SetShowStatusBar(false)
 	m.list.SetFilteringEnabled(false)
@@ -68,13 +68,13 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	fmt.Fprint(w, fn(fmt.Sprintf("%d. %s", index+1, i.name)))
 }
 
-type tgame struct {
+type rdor struct {
 	list list.Model
 }
 
-func (m tgame) Init() tea.Cmd { return nil }
+func (m rdor) Init() tea.Cmd { return nil }
 
-func (m tgame) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m rdor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.list.SetWidth(msg.Width)
@@ -91,6 +91,6 @@ func (m tgame) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m tgame) View() string {
+func (m rdor) View() string {
 	return "\n" + m.list.View()
 }

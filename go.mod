@@ -1,4 +1,4 @@
-module github.com/zrcoder/tgame
+module github.com/zrcoder/rdor
 
 go 1.20
 

@@ -8,8 +8,8 @@ import (
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/zrcoder/tgame/internal/maze/levels"
-	"github.com/zrcoder/tgame/pkg/style"
+	"github.com/zrcoder/rdor/internal/maze/levels"
+	"github.com/zrcoder/rdor/pkg/style"
 )
 
 type maze struct {

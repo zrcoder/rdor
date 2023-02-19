@@ -3,7 +3,7 @@ package print
 import (
 	"fmt"
 
-	"github.com/zrcoder/tgame/pkg/style"
+	"github.com/zrcoder/rdor/pkg/style"
 )
 
 func Errorln(err error) {

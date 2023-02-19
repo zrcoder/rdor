@@ -1,4 +1,4 @@
-# tgame
+# rdor
 
 Games in terminal
 
@@ -19,7 +19,7 @@ Leveles cloned from [mazefiles](https://github.com/micromouseonline/mazefiles)
 ## Install
 
 ```shell
-go install github.com/zrcoder/tgame@latest
+go install github.com/zrcoder/rdor@latest
 ```
 
 ## Dependencies
