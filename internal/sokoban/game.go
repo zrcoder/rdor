@@ -22,7 +22,7 @@ type sokoban struct {
 	helpInfo string
 
 	level    int
-	keys     keyMap
+	keys     *keyMap
 	keysHelp help.Model
 	input    textinput.Model
 
@@ -54,18 +54,17 @@ const (
 )
 
 var (
-
 	//go:embed levels
 	levelsFS embed.FS
 
 	blocks = map[rune]string{
 		wall:      lipgloss.NewStyle().Background(color.Orange).Render(" = "),
-		me:        " ◉ ",
+		me:        " ⦿ ", // ♾ ⚉ ⚗︎ ⚘ ☻
 		blank:     "   ",
 		slot:      lipgloss.NewStyle().Background(color.Violet).Render("   "),
 		box:       lipgloss.NewStyle().Background(color.Red).Render(" x "),
 		boxInSlot: lipgloss.NewStyle().Background(color.Green).Render("   "),
-		meInSlot:  lipgloss.NewStyle().Background(color.Violet).Render(" ◉ "),
+		meInSlot:  lipgloss.NewStyle().Background(color.Violet).Render(" ⦿ "),
 	}
 
 	up    = direction{0, -1}
@@ -78,7 +77,7 @@ func (s *sokoban) Init() tea.Cmd {
 	s.title = style.Title.Render("Sokoban")
 	s.helpInfo = style.Help.Render("Our goal is to push all the boxes into the slots without been stuck somewhere.")
 
-	s.keys = keys
+	s.keys = getKeys()
 	s.keysHelp = help.New()
 	s.input = textinput.New()
 	s.buf = &strings.Builder{}
@@ -118,18 +117,8 @@ func (s *sokoban) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		default:
 			if msg.Type == tea.KeyEnter && s.input.Focused() {
 				s.input.Blur()
-				n, err := strconv.Atoi(s.input.Value())
+				s.setted(s.input.Value())
 				s.input.SetValue("")
-				if err != nil {
-					s.err = errors.New("invalid number")
-					return s, nil
-				}
-				if n < 1 || n > maxLevel+1 {
-					s.err = errors.New("level out of range")
-					return s, nil
-				}
-				s.level = n - 1
-				s.loadLever()
 			}
 		}
 	}
@@ -163,6 +152,20 @@ func (s *sokoban) View() string {
 	}
 	s.buf.WriteByte('\n')
 	return s.buf.String()
+}
+
+func (s *sokoban) setted(level string) {
+	n, err := strconv.Atoi(level)
+	if err != nil {
+		s.err = errors.New("invalid number")
+		return
+	}
+	if n < 1 || n > maxLevel+1 {
+		s.err = errors.New("level out of range")
+		return
+	}
+	s.level = n - 1
+	s.loadLever()
 }
 
 func (s *sokoban) loadLever() {
@@ -252,7 +255,7 @@ func (s *sokoban) moveBox(srcY, srcX, destY, destX int) {
 func (s *sokoban) success() bool {
 	for _, line := range s.main {
 		for _, v := range line {
-			if v == slot {
+			if v == box {
 				return false
 			}
 		}

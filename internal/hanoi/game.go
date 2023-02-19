@@ -21,19 +21,16 @@ type hanoi struct {
 	helpInfo string
 	disks    int
 	piles    []*pile
-	keys     keyMap
+	overDisk *disk
+	keys     *keyMap
 	keysHelp help.Model
-
 	setting  bool
 	buf      *strings.Builder
 	steps    int
 	err      error
-	overDisk *disk
 }
 
 func New() tea.Model { return &hanoi{} }
-
-type errMsg error
 
 type disk struct {
 	id   int
@@ -87,7 +84,7 @@ var (
 func (h *hanoi) Init() tea.Cmd {
 	h.title = style.Title.Render("Hanoi")
 	h.helpInfo = style.Help.Render("Our goal is to move all disks from pile `1` to pile `3`.")
-	h.keys = keys
+	h.keys = getKeys()
 	h.keysHelp = help.New()
 	h.keysHelp.ShowAll = true
 	h.buf = &strings.Builder{}
@@ -97,21 +94,13 @@ func (h *hanoi) Init() tea.Cmd {
 
 func (h *hanoi) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case errMsg:
-		h.err = msg
 	case tea.KeyMsg:
 		h.err = nil
 		switch {
 		case key.Matches(msg, h.keys.Quit):
 			return h, tea.Quit
 		case key.Matches(msg, h.keys.Set):
-			h.setting = true
-			h.keys.Disks.SetEnabled(true)
-			h.keys.Piles.SetEnabled(false)
-			h.keys.Set.SetEnabled(false)
-			h.keys.Next.SetEnabled(false)
-			h.keys.Previous.SetEnabled(false)
-			h.keys.Reset.SetEnabled(false)
+			h.set()
 		case key.Matches(msg, h.keys.Reset):
 			h.setted(h.disks)
 		case key.Matches(msg, h.keys.Next):
@@ -126,7 +115,7 @@ func (h *hanoi) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			n, _ := strconv.Atoi(msg.String())
 			h.setted(n)
 		case key.Matches(msg, h.keys.Piles):
-			return h, h.pick(msg.String())
+			h.pick(msg.String())
 		default:
 			if h.setting {
 				h.err = errDiskNum
@@ -149,6 +138,16 @@ func (h *hanoi) View() string {
 	}
 	h.writeKeysHelp()
 	return h.buf.String()
+}
+
+func (h *hanoi) set() {
+	h.setting = true
+	h.keys.Disks.SetEnabled(true)
+	h.keys.Piles.SetEnabled(false)
+	h.keys.Set.SetEnabled(false)
+	h.keys.Next.SetEnabled(false)
+	h.keys.Previous.SetEnabled(false)
+	h.keys.Reset.SetEnabled(false)
 }
 
 func (h *hanoi) setted(n int) {
@@ -178,9 +177,9 @@ func (h *hanoi) setted(n int) {
 	h.piles[0].disks = disks
 }
 
-func (h *hanoi) pick(key string) tea.Cmd {
+func (h *hanoi) pick(key string) {
 	if h.success() {
-		return nil
+		return
 	}
 	idx := map[string]int{
 		"1": 0,
@@ -192,32 +191,30 @@ func (h *hanoi) pick(key string) tea.Cmd {
 	}
 	i := idx[key]
 	curPile := h.piles[i]
-	return func() tea.Msg {
-		if h.overDisk == nil && curPile.empty() {
-			return nil
-		}
-		if h.overDisk == nil {
-			curPile.overOne = true
-			h.overDisk = curPile.top()
-			return nil
-		}
-		if !curPile.empty() && h.overDisk.id > curPile.top().id {
-			return errMsg(errCantMove)
-		}
-		if !curPile.empty() && h.overDisk == curPile.top() {
-			curPile.overOne = false
+	if h.overDisk == nil && curPile.empty() {
+		return
+	}
+	if h.overDisk == nil {
+		curPile.overOne = true
+		h.overDisk = curPile.top()
+		return
+	}
+	if !curPile.empty() && h.overDisk.id > curPile.top().id {
+		h.err = errCantMove
+		return
+	}
+	if !curPile.empty() && h.overDisk == curPile.top() {
+		curPile.overOne = false
+		h.overDisk = nil
+		return
+	}
+	for _, p := range h.piles {
+		if p.overOne {
+			h.steps++
+			curPile.push(p.pop())
+			p.overOne = false
 			h.overDisk = nil
-			return nil
 		}
-		for _, p := range h.piles {
-			if p.overOne {
-				h.steps++
-				curPile.push(p.pop())
-				p.overOne = false
-				h.overDisk = nil
-			}
-		}
-		return nil
 	}
 }
 
@@ -283,6 +280,8 @@ func (h *hanoi) writeState() {
 			h.buf.WriteString(starStyle.Render(s))
 		}
 		h.writeBlankLine()
+	} else if h.err != nil {
+		h.writeError(h.err)
 	} else {
 		h.writeLine(fmt.Sprintf("steps: %d", h.steps))
 	}
@@ -298,7 +297,7 @@ func (h *hanoi) writeKeysHelp() {
 }
 
 func (h *hanoi) writeError(err error) {
-	h.buf.WriteString(style.Error.Render(err.Error()))
+	h.buf.WriteString(style.Error.Render(err.Error() + "\n"))
 }
 
 func (h *hanoi) writeLine(s string) {
