@@ -60,7 +60,7 @@ var (
 
 	blocks = map[rune]string{
 		wall:      lipgloss.NewStyle().Background(color.Orange).Render(" = "),
-		me:        " ◉ ",
+		me:        " ⦿ ",
 		blank:     "   ",
 		slot:      lipgloss.NewStyle().Background(color.Violet).Render("   "),
 		box:       lipgloss.NewStyle().Background(color.Red).Render(" x "),

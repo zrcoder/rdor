@@ -46,7 +46,7 @@ const (
 	verticalWall   = '┃'
 	horizontalWall = '━'
 	corner         = '•'
-	me             = '◉'
+	me             = '⦿'
 	goal           = '★'
 	blank          = ' '
 )
