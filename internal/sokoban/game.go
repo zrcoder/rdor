@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/zrcoder/rdor/pkg/grid"
 	"github.com/zrcoder/rdor/pkg/style"
 	"github.com/zrcoder/rdor/pkg/style/color"
 
@@ -20,25 +21,21 @@ import (
 type sokoban struct {
 	title    string
 	helpInfo string
+	blocks   map[rune]string
 
 	level    int
 	keys     *keyMap
 	keysHelp help.Model
 	input    textinput.Model
 
-	origin [][]rune
-	main   [][]rune
-	err    error
-	y      int
-	x      int
-	buf    *strings.Builder
+	originGrid *grid.Grid
+	grid       *grid.Grid
+	err        error
+	myPos      grid.Position
+	buf        *strings.Builder
 }
 
 func New() tea.Model { return &sokoban{} }
-
-type direction struct {
-	x, y int
-}
 
 const (
 	maxLevel         = 51
@@ -53,11 +50,13 @@ const (
 	meInSlot  = '.'
 )
 
-var (
-	//go:embed levels
-	levelsFS embed.FS
+//go:embed levels
+var levelsFS embed.FS
 
-	blocks = map[rune]string{
+func (s *sokoban) Init() tea.Cmd {
+	s.title = style.Title.Render("Sokoban")
+	s.helpInfo = style.Help.Render("Our goal is to push all the boxes into the slots without been stuck somewhere.")
+	s.blocks = map[rune]string{
 		wall:      lipgloss.NewStyle().Background(color.Orange).Render(" = "),
 		me:        " ⦿ ", // ♾ ⚉ ⚗︎ ⚘ ☻
 		blank:     "   ",
@@ -66,17 +65,6 @@ var (
 		boxInSlot: lipgloss.NewStyle().Background(color.Green).Render("   "),
 		meInSlot:  lipgloss.NewStyle().Background(color.Violet).Render(" ⦿ "),
 	}
-
-	up    = direction{0, -1}
-	down  = direction{0, 1}
-	left  = direction{-1, 0}
-	right = direction{1, 0}
-)
-
-func (s *sokoban) Init() tea.Cmd {
-	s.title = style.Title.Render("Sokoban")
-	s.helpInfo = style.Help.Render("Our goal is to push all the boxes into the slots without been stuck somewhere.")
-
 	s.keys = getKeys()
 	s.keysHelp = help.New()
 	s.input = textinput.New()
@@ -97,13 +85,13 @@ func (s *sokoban) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, s.keys.Quit):
 			return s, tea.Quit
 		case key.Matches(msg, s.keys.Up):
-			s.move(up)
+			s.move(grid.Up)
 		case key.Matches(msg, s.keys.Left):
-			s.move(left)
+			s.move(grid.Left)
 		case key.Matches(msg, s.keys.Down):
-			s.move(down)
+			s.move(grid.Down)
 		case key.Matches(msg, s.keys.Right):
-			s.move(right)
+			s.move(grid.Right)
 		case key.Matches(msg, s.keys.Next):
 			s.level = (s.level + 1) % maxLevel
 			s.loadLever()
@@ -128,12 +116,13 @@ func (s *sokoban) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (s *sokoban) View() string {
 	s.buf.Reset()
 	s.buf.WriteString("\n" + s.title + "\n\n")
-	for _, line := range s.main {
-		for _, v := range line {
-			s.buf.WriteString(blocks[v])
+	s.grid.Range(func(pos grid.Position, char rune, isLineEnd bool) bool {
+		s.buf.WriteString(s.blocks[char])
+		if isLineEnd {
+			s.buf.WriteByte('\n')
 		}
-		s.buf.WriteByte('\n')
-	}
+		return false
+	})
 	s.buf.WriteString(style.Help.Render(fmt.Sprintf("- %d/%d - ", s.level+1, maxLevel)))
 	if s.success() {
 		s.buf.WriteString(style.Success.Render("Success!"))
@@ -173,104 +162,85 @@ func (s *sokoban) loadLever() {
 	if err != nil {
 		panic(err)
 	}
-	lines := strings.Split(string(data), "\n")
-	maxWidth := 0
-	for y, line := range lines {
-		maxWidth = max(maxWidth, len(line))
-		for x, v := range line {
-			if v == me || v == meInSlot {
-				s.y = y
-				s.x = x
-			}
+	s.grid = grid.New(string(data))
+	s.originGrid = grid.New(string(data))
+	s.grid.Range(func(pos grid.Position, char rune, isLineEnd bool) bool {
+		if char == me || char == meInSlot {
+			s.myPos = pos
+			return true
 		}
-	}
-	s.main = make([][]rune, len(lines))
-	s.origin = make([][]rune, len(lines))
-	for i, line := range lines {
-		s.main[i] = make([]rune, maxWidth)
-		s.origin[i] = make([]rune, maxWidth)
-		copy(s.main[i], []rune(line))
-		copy(s.origin[i], []rune(line))
-	}
+		return false
+	})
 }
 
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func (s *sokoban) move(d direction) {
-	y, x := s.y+d.y, s.x+d.x
-	if s.outBound(y, x) {
+func (s *sokoban) move(d grid.Direction) {
+	pos := grid.TransForm(s.myPos, d)
+	if s.grid.OutBound(pos) {
 		return
 	}
-	switch s.main[y][x] {
+	switch s.grid.Get(pos) {
 	case blank, slot:
-		s.moveMe(y, x)
+		s.moveMe(pos)
 	case box, boxInSlot:
-		nx, ny := x+d.x, y+d.y
-		if s.outBound(ny, nx) {
+		dest := grid.TransForm(pos, d)
+		if s.grid.OutBound(dest) {
 			return
 		}
-		if s.main[ny][nx] == blank || s.main[ny][nx] == slot {
-			s.moveBox(y, x, ny, nx)
-			s.moveMe(y, x)
+		char := s.grid.Get(dest)
+		if char == blank || char == slot {
+			s.moveBox(pos, dest)
+			s.moveMe(pos)
 		}
 	}
 }
 
-func (s *sokoban) outBound(y, x int) bool {
-	return y < 0 || y >= len(s.main) || x < 0 || x >= len(s.main[y])
+func (s *sokoban) moveMe(p grid.Position) {
+	if s.grid.Get(p) == blank {
+		s.grid.Set(p, me)
+	} else {
+		s.grid.Set(p, meInSlot)
+	}
+	if s.grid.Get(s.myPos) == me {
+		s.grid.Set(s.myPos, blank)
+	} else {
+		s.grid.Set(s.myPos, slot)
+	}
+	s.myPos = p
 }
 
-func (s *sokoban) moveMe(y, x int) {
-	if s.main[y][x] == blank {
-		s.main[y][x] = me
-	} else {
-		s.main[y][x] = meInSlot
+func (s *sokoban) moveBox(src, dest grid.Position) {
+	char := s.grid.Get(dest)
+	if char == blank {
+		s.grid.Set(dest, box)
+	} else if char == slot {
+		s.grid.Set(dest, boxInSlot)
 	}
-	if s.main[s.y][s.x] == me {
-		s.main[s.y][s.x] = blank
+	if s.grid.Get(src) == box {
+		s.grid.Set(src, blank)
 	} else {
-		s.main[s.y][s.x] = slot
-	}
-	s.y, s.x = y, x
-}
-
-func (s *sokoban) moveBox(srcY, srcX, destY, destX int) {
-	if s.main[destY][destX] == blank {
-		s.main[destY][destX] = box
-	} else if s.main[destY][destX] == slot {
-		s.main[destY][destX] = boxInSlot
-	}
-	if s.main[srcY][srcX] == box {
-		s.main[srcY][srcX] = blank
-	} else {
-		s.main[srcY][srcX] = slot
+		s.grid.Set(src, slot)
 	}
 }
 
 func (s *sokoban) success() bool {
-	for _, line := range s.main {
-		for _, v := range line {
-			if v == box {
-				return false
-			}
+	res := true
+	s.grid.Range(func(pos grid.Position, char rune, isLineEnd bool) bool {
+		if char == box {
+			res = false
+			return true
 		}
-	}
-	return true
+		return false
+	})
+	return res
 }
 
 func (s *sokoban) reset() {
-	for i, row := range s.origin {
-		for j, v := range row {
-			if v == me || v == meInSlot {
-				s.y = i
-				s.x = j
-			}
-			s.main[i][j] = v
+	s.grid.Copy(s.originGrid)
+	s.grid.Range(func(pos grid.Position, char rune, isLineEnd bool) bool {
+		if char == me || char == meInSlot {
+			s.myPos = pos
+			return true
 		}
-	}
+		return false
+	})
 }
