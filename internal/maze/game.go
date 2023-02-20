@@ -16,7 +16,7 @@ type maze struct {
 	title     string
 	helpInfo  string
 	charMap   map[rune]rune
-	keys      keyMap
+	keys      *keyMap
 	keysHelp  help.Model
 	me        position
 	goals     map[position]bool
@@ -47,13 +47,13 @@ const (
 	horizontalWall = '━'
 	corner         = '•'
 	me             = '⦿'
-	goal           = '★'
+	goal           = '❀' // ★
 	blank          = ' '
 )
 
 func (m *maze) Init() tea.Cmd {
 	m.title = style.Title.Render("Maze")
-	m.helpInfo = style.Help.Render("Our goal is to take all the stars in the maze.")
+	m.helpInfo = style.Help.Render("Our goal is to take all the flowers in the maze.")
 	m.charMap = map[rune]rune{
 		'|': verticalWall,
 		'-': horizontalWall,
@@ -66,12 +66,13 @@ func (m *maze) Init() tea.Cmd {
 	if err != nil {
 		panic(err)
 	}
-	m.keys = keys
+	m.keys = getKeys()
 	m.keysHelp = help.New()
 	m.keysHelp.ShowAll = true
 	m.buf = &strings.Builder{}
 	return nil
 }
+
 func (m *maze) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -105,7 +106,6 @@ func (m *maze) View() string {
 		m.buf.WriteString(string(line))
 		m.buf.WriteByte('\n')
 	}
-	m.buf.WriteByte('\n')
 	m.buf.WriteString(style.Help.Render("level: " + m.levelName))
 	if m.success() {
 		m.buf.WriteString(style.Success.Render("  Success!"))
@@ -170,34 +170,32 @@ func (m *maze) reset() {
 
 func (m *maze) move(d direction) {
 	y, x := m.me.y, m.me.x
-	switch d {
-	case up:
-		y--
-	case left:
-		x -= 2
-	case down:
-		y++
-	case right:
-		x += 2
+	transform := func() {
+		switch d {
+		case up:
+			y--
+		case left:
+			x -= 2
+		case down:
+			y++
+		case right:
+			x += 2
+		}
 	}
-	if m.outBound(y, x) || m.main[y][x] == horizontalWall || m.main[y][x] == verticalWall {
+	isWall := func() bool {
+		return m.main[y][x] == horizontalWall ||
+			m.main[y][x] == verticalWall
+	}
+	outBound := func() bool {
+		return y < 0 || y >= len(m.main) ||
+			x < 0 || x >= len(m.main[y])
+	}
+	transform()
+	if outBound() || isWall() {
 		return
 	}
-	switch d {
-	case up:
-		y--
-	case left:
-		x -= 2
-	case down:
-		y++
-	case right:
-		x += 2
-	}
+	transform()
 	m.moveMe(y, x)
-}
-
-func (m *maze) outBound(y, x int) bool {
-	return y < 0 || y >= len(m.main) || x < 0 || x >= len(m.main[y])
 }
 
 func (m *maze) moveMe(dy, dx int) {

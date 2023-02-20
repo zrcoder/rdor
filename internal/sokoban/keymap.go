@@ -16,11 +16,11 @@ type keyMap struct {
 	Reset    key.Binding
 }
 
-func (k keyMap) ShortHelp() []key.Binding {
+func (k *keyMap) ShortHelp() []key.Binding {
 	return []key.Binding{k.Set, k.Quit}
 }
 
-func (k keyMap) FullHelp() [][]key.Binding {
+func (k *keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Left, k.Down, k.Right},
 		{k.Reset, k.Next, k.Previous},
@@ -28,14 +28,43 @@ func (k keyMap) FullHelp() [][]key.Binding {
 	}
 }
 
-var keys = keyMap{
-	Up:       key.NewBinding(key.WithKeys("up"), key.WithHelp("↑", "up")),
-	Left:     key.NewBinding(key.WithKeys("left"), key.WithHelp("←", "left")),
-	Down:     key.NewBinding(key.WithKeys("down"), key.WithHelp("↓", "down")),
-	Right:    key.NewBinding(key.WithKeys("right"), key.WithHelp("→", "right")),
-	Reset:    key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "reset")),
-	Next:     key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "next")),
-	Previous: key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "previous")),
-	Set:      key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "set")),
-	Quit:     key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")),
+func getKeys() *keyMap {
+	return &keyMap{
+		Up: key.NewBinding(
+			key.WithKeys("up"),
+			key.WithHelp("↑", "up"),
+		),
+		Left: key.NewBinding(
+			key.WithKeys("left"),
+			key.WithHelp("←", "left"),
+		),
+		Down: key.NewBinding(
+			key.WithKeys("down"),
+			key.WithHelp("↓", "down"),
+		),
+		Right: key.NewBinding(
+			key.WithKeys("right"),
+			key.WithHelp("→", "right"),
+		),
+		Reset: key.NewBinding(
+			key.WithKeys("r"),
+			key.WithHelp("r", "reset"),
+		),
+		Next: key.NewBinding(
+			key.WithKeys("n"),
+			key.WithHelp("n", "next"),
+		),
+		Previous: key.NewBinding(
+			key.WithKeys("p"),
+			key.WithHelp("p", "previous"),
+		),
+		Set: key.NewBinding(
+			key.WithKeys("s"),
+			key.WithHelp("s", "set"),
+		),
+		Quit: key.NewBinding(
+			key.WithKeys("q"),
+			key.WithHelp("q", "quit"),
+		),
+	}
 }
