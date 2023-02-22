@@ -28,11 +28,11 @@ type sokoban struct {
 	keysHelp help.Model
 	input    textinput.Model
 
-	originGrid *grid.Grid
-	grid       *grid.Grid
-	err        error
-	myPos      grid.Position
-	buf        *strings.Builder
+	helpGrid *grid.Grid
+	grid     *grid.Grid
+	err      error
+	myPos    grid.Position
+	buf      *strings.Builder
 }
 
 func New() tea.Model { return &sokoban{} }
@@ -116,12 +116,12 @@ func (s *sokoban) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (s *sokoban) View() string {
 	s.buf.Reset()
 	s.buf.WriteString("\n" + s.title + "\n\n")
-	s.grid.Range(func(pos grid.Position, char rune, isLineEnd bool) bool {
+	s.grid.Range(func(pos grid.Position, char rune, isLineEnd bool) (end bool) {
 		s.buf.WriteString(s.blocks[char])
 		if isLineEnd {
 			s.buf.WriteByte('\n')
 		}
-		return false
+		return
 	})
 	s.buf.WriteString(style.Help.Render(fmt.Sprintf("- %d/%d - ", s.level+1, maxLevel)))
 	if s.success() {
@@ -163,13 +163,13 @@ func (s *sokoban) loadLever() {
 		panic(err)
 	}
 	s.grid = grid.New(string(data))
-	s.originGrid = grid.New(string(data))
-	s.grid.Range(func(pos grid.Position, char rune, isLineEnd bool) bool {
+	s.helpGrid = grid.Copy(s.grid)
+	s.grid.Range(func(pos grid.Position, char rune, isLineEnd bool) (end bool) {
 		if char == me || char == meInSlot {
 			s.myPos = pos
 			return true
 		}
-		return false
+		return
 	})
 }
 
@@ -224,23 +224,23 @@ func (s *sokoban) moveBox(src, dest grid.Position) {
 
 func (s *sokoban) success() bool {
 	res := true
-	s.grid.Range(func(pos grid.Position, char rune, isLineEnd bool) bool {
+	s.grid.Range(func(pos grid.Position, char rune, isLineEnd bool) (end bool) {
 		if char == box {
 			res = false
 			return true
 		}
-		return false
+		return
 	})
 	return res
 }
 
 func (s *sokoban) reset() {
-	s.grid.Copy(s.originGrid)
-	s.grid.Range(func(pos grid.Position, char rune, isLineEnd bool) bool {
+	s.grid.Copy(s.helpGrid)
+	s.grid.Range(func(pos grid.Position, char rune, isLineEnd bool) (end bool) {
 		if char == me || char == meInSlot {
 			s.myPos = pos
 			return true
 		}
-		return false
+		return
 	})
 }

@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/zrcoder/rdor/internal/hanoi"
+	"github.com/zrcoder/rdor/internal/last"
 	"github.com/zrcoder/rdor/internal/maze"
 	"github.com/zrcoder/rdor/internal/sokoban"
 	"github.com/zrcoder/rdor/pkg/style"
@@ -22,6 +23,7 @@ func main() {
 		item{name: "Hanoi", instance: hanoi.New()},
 		item{name: "Sokoban", instance: sokoban.New()},
 		item{name: "Maze", instance: maze.New()},
+		item{name: "Last", instance: last.New()},
 	}
 	const listHeight = 14
 	const defaultWidth = 20
