@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/zrcoder/rdor/pkg/grid"
+	"github.com/zrcoder/rdor/pkg/model"
 	"github.com/zrcoder/rdor/pkg/style"
 	"github.com/zrcoder/rdor/pkg/style/color"
 
@@ -19,6 +20,7 @@ import (
 )
 
 type sokoban struct {
+	parent   tea.Model
 	title    string
 	helpInfo string
 	blocks   map[rune]string
@@ -35,7 +37,8 @@ type sokoban struct {
 	buf      *strings.Builder
 }
 
-func New() tea.Model { return &sokoban{} }
+func New() model.Game                         { return &sokoban{} }
+func (s *sokoban) SetParent(parent tea.Model) { s.parent = parent }
 
 const (
 	maxLevel         = 51
@@ -82,8 +85,8 @@ func (s *sokoban) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		s.err = nil
 		switch {
-		case key.Matches(msg, s.keys.Quit):
-			return s, tea.Quit
+		case key.Matches(msg, s.keys.Home):
+			return s.parent, nil
 		case key.Matches(msg, s.keys.Up):
 			s.move(grid.Up)
 		case key.Matches(msg, s.keys.Left):
@@ -102,6 +105,8 @@ func (s *sokoban) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return s, s.input.Focus()
 		case key.Matches(msg, s.keys.Reset):
 			s.reset()
+		case msg.String() == "ctrl+c":
+			return s, tea.Quit
 		default:
 			if msg.Type == tea.KeyEnter && s.input.Focused() {
 				s.input.Blur()

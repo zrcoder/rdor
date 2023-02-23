@@ -34,6 +34,23 @@ func (g *Grid) Copy(gg *Grid) {
 	}
 }
 
+func (g *Grid) Equal(f *Grid) bool {
+	if len(g.data) != len(f.data) {
+		return false
+	}
+	for r := range g.data {
+		if len(g.data[r]) != len(f.data[r]) {
+			return false
+		}
+		for c := range g.data[r] {
+			if g.data[r][c] != f.data[r][c] {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 func (g *Grid) OutBound(pos Position) bool {
 	return pos.Row < 0 || pos.Row >= len(g.data) ||
 		pos.Col < 0 || pos.Col >= len(g.data[pos.Row])

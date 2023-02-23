@@ -8,6 +8,7 @@ import (
 var (
 	Success = lipgloss.NewStyle().Foreground(color.Green)
 	Error   = lipgloss.NewStyle().Foreground(color.Red)
+	Warn    = lipgloss.NewStyle().Foreground(color.Orange)
 	Title   = lipgloss.NewStyle().Background(color.Blue).
 		Foreground(color.White).
 		PaddingLeft(1).

@@ -1,27 +1,33 @@
 package last
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/zrcoder/rdor/pkg/grid"
+	"github.com/zrcoder/rdor/pkg/model"
 	"github.com/zrcoder/rdor/pkg/style"
 	"github.com/zrcoder/rdor/pkg/style/color"
 
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
 type last struct {
+	parent      tea.Model
 	title       string
 	levels      []*level
 	levelIndex  int
-	left        int
+	commonCells int // the lefted commen cells' number, exclude the 2 players
 	rd          *rand.Rand
+	keys        *keyMap
+	keysHepl    help.Model
 	grid        *grid.Grid
 	helpGrid    *grid.Grid
 	charDic     map[rune]string
@@ -31,11 +37,13 @@ type last struct {
 	eatingLeft  int
 	eating      bool
 	eatingPath  *pathStack
+	setting     bool
 	err         error
-	logFile     *os.File
+	showHelp    bool
 }
 
-func New() tea.Model { return &last{} }
+func New() model.Game                      { return &last{} }
+func (l *last) SetParent(parent tea.Model) { l.parent = parent }
 
 type tickMsg time.Time
 
@@ -53,26 +61,24 @@ const (
 	rival = 'r'
 )
 
-var (
-	playSyles = []lipgloss.Style{
-		lipgloss.NewStyle().Foreground(color.Orange),
-		lipgloss.NewStyle().Foreground(color.Green),
-	}
-)
+var playSyles = []lipgloss.Style{
+	lipgloss.NewStyle().Foreground(color.Red),
+	lipgloss.NewStyle().Foreground(color.Orange),
+	lipgloss.NewStyle().Foreground(color.Yellow),
+	lipgloss.NewStyle().Foreground(color.Green),
+	lipgloss.NewStyle().Foreground(color.Blue),
+	lipgloss.NewStyle().Foreground(color.Indigo),
+	lipgloss.NewStyle().Foreground(color.Violet),
+}
 
 func (l *last) Init() tea.Cmd {
-	// below 4 lines are just for debug, should delete
-	// var err error
-	// l.logFile, err = tea.LogToFile("last.log", "")
-	// if err != nil {
-	// 	panic(err)
-	// }
-
 	l.title = style.Title.Render("Last")
 	l.rd = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
+	l.keys = getKeys()
+	l.keysHepl = help.New()
 	l.levels = getDefaultLevers()
 	l.buf = &strings.Builder{}
-	l.set()
+	l.setLevel()
 	return l.lifeTransform()
 }
 
@@ -81,19 +87,49 @@ func (l *last) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tickMsg:
 		return l, tea.Batch(l.lifeTransform(), l.eat())
 	case tea.KeyMsg:
-		val := msg.String()
-		switch val {
-		case "q":
-			return l, tea.Quit
-		case "1", "2":
-			if l.eating {
-				return l, nil
-			}
-			n, _ := strconv.Atoi(val)
+		l.err = nil
+		switch {
+		case key.Matches(msg, l.keys.Home):
+			return l.parent, nil
+		case key.Matches(msg, l.keys.Reset):
+			l.setLevel()
+		case key.Matches(msg, l.keys.Next):
+			l.levelIndex = (l.levelIndex + 1) % len(l.levels)
+			l.setLevel()
+		case key.Matches(msg, l.keys.Previous):
+			l.levelIndex = (l.levelIndex + len(l.levels) - 1) % len(l.levels)
+			l.setLevel()
+		case key.Matches(msg, l.keys.Numbers):
+			n, _ := strconv.Atoi(msg.String())
 			l.playerIndex = 0
 			l.eatingLeft = n
 			l.eating = true
 			return l, l.eat()
+		case key.Matches(msg, l.keys.Help):
+			l.showHelp = !l.showHelp
+		case msg.String() == "ctrl+c":
+			return l, tea.Quit
+		default:
+			if !l.setting {
+				return l, nil
+			}
+			switch msg.String() {
+			case "0", "1", "2", "3", "4", "5", "6", "7", "8", "9":
+				if l.setting || l.eating {
+					l.err = errors.New("wait, please")
+				} else {
+					l.err = fmt.Errorf("only 1-%d cells can be eaten each turn", l.currentLevel().eatingMax)
+				}
+			case "y", "Y", "enter":
+				if l.setting {
+					l.setted()
+				}
+			case "n", "N":
+				if l.setting {
+					l.setted()
+					l.changeTurn()
+				}
+			}
 		}
 	}
 	return l, nil
@@ -102,6 +138,11 @@ func (l *last) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (l *last) View() string {
 	l.buf.Reset()
 	l.buf.WriteString("\n" + l.title + "\n")
+	if l.err != nil {
+		l.buf.WriteString(style.Error.Render(l.err.Error()))
+	}
+	l.buf.WriteString("\n")
+
 	l.grid.Range(func(pos grid.Position, char rune, isLineEnd bool) (end bool) {
 		l.buf.WriteString(l.charDic[char])
 		if isLineEnd {
@@ -109,38 +150,60 @@ func (l *last) View() string {
 		}
 		return
 	})
-	l.buf.WriteString("\n\n")
-	l.buf.WriteString(fmt.Sprintf("Cells: %d\n", l.left))
-	l.buf.WriteString("You: " + l.charDic[me] + ", your rival: " + l.charDic[rival] + ".\n")
-	if l.success() {
-		l.buf.WriteString(style.Success.Render("success!\n"))
-	} else if l.fail() {
-		l.buf.WriteString(style.Error.Render("failed~\n"))
-	} else { // not end
-		if l.playerIndex == 0 {
-			l.buf.WriteString("Your turn now\n")
-		} else {
-			l.buf.WriteString("The rival's turn\n")
-		}
-	}
 	l.buf.WriteString("\n")
 
-	return l.buf.String() // + "\n\nDebug:\n" + l.grid.String()
+	l.buf.WriteString(l.currentLevel().shortView() + "\n")
+	if l.setting {
+		l.buf.WriteString(style.Warn.Render("You go first? (y/n)"))
+	} else {
+		l.buf.WriteString(style.Help.Render("You:") + l.charDic[me] + style.Help.Render(" Rival:") + l.charDic[rival] + " ")
+		l.buf.WriteString(style.Help.Render(fmt.Sprintf("Left: %2d  Turn:", l.commonCells+2)))
+		if l.playerIndex == 0 {
+			l.buf.WriteString(l.charDic[me])
+		} else {
+			l.buf.WriteString(l.charDic[rival])
+		}
+	}
+	if l.success() {
+		l.buf.WriteString(style.Success.Render("\nYou are the last :)"))
+	} else if l.fail() {
+		l.buf.WriteString(style.Error.Render("\nYour rival is the last :("))
+	} else { // not end
+		l.buf.WriteString("\n")
+	}
+	if l.showHelp {
+		l.buf.WriteString("\n")
+		l.buf.WriteString(l.currentLevel().View() + "\n")
+	}
+	l.buf.WriteString("\n")
+	l.buf.WriteString(l.keysHepl.View(l.keys))
+	return l.buf.String()
 }
 
-func (l *last) set() {
+func (l *last) setLevel() {
+	l.setting = true // wait for the user to decide whether to get started first
+	l.keys.Numbers.SetEnabled(false)
 	l.eatingPath = &pathStack{}
-	l.left = l.currentLevel().totalCells - 2 // minus the 2 plays
+	l.commonCells = l.currentLevel().totalCells - 2 // minus the 2 plays
 	l.rd.Shuffle(len(playSyles), func(i, j int) {
 		playSyles[i], playSyles[j] = playSyles[j], playSyles[i]
 	})
 	l.charDic = map[rune]string{
 		blank: "   ",
 		cell:  " ◎ ",
-		me:    playSyles[0].Render(" ● "),
-		rival: playSyles[1].Render(" ● "),
+		me:    playSyles[0].Render(" ◉ "),
+		rival: playSyles[1].Render(" ◉ "),
 	}
 	l.genCells()
+	l.playerIndex = 0
+}
+
+func (l *last) setted() {
+	l.setting = false
+	l.keys.Numbers.SetEnabled(true)
+	ks := []string{"1", "2", "3", "4"}
+	l.keys.Numbers.SetKeys(ks[:l.currentLevel().eatingMax]...)
+	l.keys.Numbers.SetHelp(fmt.Sprintf("1-%d", l.currentLevel().eatingMax), "cells to eat")
 }
 
 func (l *last) genCells() {
@@ -183,7 +246,7 @@ func (l *last) doTick() tea.Cmd {
 }
 
 func (l *last) lifeTransform() tea.Cmd {
-	if l.eating || l.left <= 0 {
+	if l.eating || l.commonCells <= 0 {
 		return nil
 	}
 	cells := 0
@@ -206,7 +269,7 @@ func (l *last) lifeTransform() tea.Cmd {
 		}
 		return
 	})
-	diff := l.left - cells
+	diff := l.commonCells - cells
 	if diff < 0 {
 		l.removeCells(l.helpGrid, -diff)
 	} else if diff > 0 {
@@ -267,24 +330,20 @@ func (l *last) eat() tea.Cmd {
 	// end moving
 	if l.eatingPath.empty() {
 		l.eatingLeft--
-		l.left--
+		l.commonCells--
 	}
 	if l.eatingLeft == 0 {
-		l.eating = false
 		return l.changeTurn()
 	}
 	return l.doTick()
 }
 
 func (l *last) bfs() {
-	l.logf("begin bfs, current player: %#v, cells left: %d,  current board:\n%s",
-		l.currentPlayer(), l.left, l.grid.String())
 	queue := []grid.Position{l.currentPlayer()}
 	vis := map[grid.Position]bool{l.currentPlayer(): true}
 	directions := map[grid.Position]grid.Direction{}
 	var cur grid.Position
 	getPath := func() {
-		l.logf("begin to get path, cur: %#v, current player: %#v\ndirections: %d, vis: %d", cur, l.currentPlayer(), len(directions), len(vis))
 		for cur != l.currentPlayer() {
 			d := directions[cur]
 			l.eatingPath.push(d)
@@ -302,7 +361,7 @@ func (l *last) bfs() {
 		if char == cell {
 			return true
 		}
-		if l.left > 0 {
+		if l.commonCells > 0 {
 			return false
 		}
 		return isOpposite(char)
@@ -315,14 +374,13 @@ func (l *last) bfs() {
 		if char == blank || char == cell {
 			return true
 		}
-		return isOpposite(char)
+		return l.commonCells == 0 && isOpposite(char)
 	}
 	for len(queue) > 0 {
 		cur = queue[0]
 		queue = queue[1:]
 		if foundTarget() {
 			getPath()
-			l.logf("bfs found target, path is:\n%#v", l.eatingPath)
 			return
 		}
 		for _, d := range grid.NormalDirections {
@@ -335,7 +393,6 @@ func (l *last) bfs() {
 			queue = append(queue, pos)
 		}
 	}
-	l.logf("bfs not found target!!!")
 }
 
 func (l *last) currentLevel() *level {
@@ -344,19 +401,20 @@ func (l *last) currentLevel() *level {
 
 func (l *last) changeTurn() tea.Cmd {
 	if l.ended() {
+		l.keys.Numbers.SetEnabled(false)
 		return nil
 	}
 	l.playerIndex ^= 1      // 0->1 / 1->0
 	if l.playerIndex == 1 { // the rival, auto eating
 		l.eating = true
 		if l.canEatRival() {
-			l.eatingLeft = l.left + 1
+			l.eatingLeft = l.commonCells + 1
 		} else if !l.currentLevel().hard {
 			// just take random cells
 			l.eatingLeft = 1 + l.rd.Intn(l.currentLevel().eatingMax)
 		} else {
 			// very clever rival
-			total := l.left + 1
+			total := l.commonCells + 1
 			period := l.currentLevel().eatingMax + 1
 			// the best strategy
 			l.eatingLeft = total % period
@@ -364,12 +422,14 @@ func (l *last) changeTurn() tea.Cmd {
 				l.eatingLeft = 1 + l.rd.Intn(l.currentLevel().eatingMax)
 			}
 		}
+	} else {
+		l.eating = false
 	}
 	return l.doTick()
 }
 
 func (l *last) ended() bool {
-	return l.left == -1
+	return l.commonCells == -1
 }
 
 func (l *last) success() bool {
@@ -381,16 +441,9 @@ func (l *last) fail() bool {
 }
 
 func (l *last) canEatRival() bool {
-	return l.left+1 <= l.currentLevel().eatingMax
+	return l.commonCells+1 <= l.currentLevel().eatingMax
 }
 
 func (l *last) currentPlayer() grid.Position {
 	return l.players[l.playerIndex]
-}
-
-func (l *last) logf(s string, v ...any) {
-	if l.logFile != nil {
-		l.logFile.WriteString(time.Now().String())
-		l.logFile.WriteString(fmt.Sprintf(s, v...) + "\n")
-	}
 }

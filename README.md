@@ -16,6 +16,12 @@ Inspired by [sokoban-go](https://github.com/rn2dy/sokoban-go)
 
 Leveles cloned from [mazefiles](https://github.com/micromouseonline/mazefiles)
 
+## N-Puzzle
+
+## Last
+
+Inspired by [lastone](https://github.com/zrcoder/lastone)
+
 ## Install
 
 ```shell

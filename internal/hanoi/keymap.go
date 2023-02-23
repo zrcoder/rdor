@@ -11,18 +11,18 @@ type keyMap struct {
 	Previous key.Binding
 	Reset    key.Binding
 	Set      key.Binding
-	Quit     key.Binding
+	Home     key.Binding
 }
 
 func (k *keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Disks, k.Piles, k.Set, k.Quit}
+	return []key.Binding{k.Disks, k.Piles, k.Set, k.Home}
 }
 
 func (k *keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Disks, k.Piles, k.Reset},
 		{k.Next, k.Previous},
-		{k.Set, k.Quit},
+		{k.Set, k.Home},
 	}
 }
 
@@ -52,9 +52,9 @@ func getKeys() *keyMap {
 			key.WithKeys("s"),
 			key.WithHelp("s", "set"),
 		),
-		Quit: key.NewBinding(
-			key.WithKeys("q"),
-			key.WithHelp("q", "quit"),
+		Home: key.NewBinding(
+			key.WithKeys("h"),
+			key.WithHelp("h", "home"),
 		),
 	}
 }
