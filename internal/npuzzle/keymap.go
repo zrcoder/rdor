@@ -16,7 +16,12 @@ func (k *keyMap) ShortHelp() []key.Binding {
 	return []key.Binding{k.Up, k.Left, k.Down, k.Right, k.Shuffle, k.Next, k.Home}
 }
 
-func (k *keyMap) FullHelp() [][]key.Binding { return nil }
+func (k *keyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{k.Up, k.Left, k.Down, k.Right},
+		{k.Shuffle, k.Next, k.Home},
+	}
+}
 
 func getKeys() *keyMap {
 	return &keyMap{
