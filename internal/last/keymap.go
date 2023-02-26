@@ -9,12 +9,12 @@ type keyMap struct {
 	Next     key.Binding
 	Previous key.Binding
 	Reset    key.Binding
-	Quit     key.Binding
+	Home     key.Binding
 	Help     key.Binding
 }
 
 func (k *keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Numbers, k.Next, k.Previous, k.Reset, k.Quit, k.Help}
+	return []key.Binding{k.Numbers, k.Next, k.Previous, k.Reset, k.Home, k.Help}
 }
 
 func (k *keyMap) FullHelp() [][]key.Binding {
@@ -38,9 +38,9 @@ func getKeys() *keyMap {
 			key.WithKeys("r"),
 			key.WithHelp("r", "reset"),
 		),
-		Quit: key.NewBinding(
-			key.WithKeys("q"),
-			key.WithHelp("q", "quit"),
+		Home: key.NewBinding(
+			key.WithKeys("h"),
+			key.WithHelp("h", "home"),
 		),
 		Help: key.NewBinding(
 			key.WithKeys("?"),

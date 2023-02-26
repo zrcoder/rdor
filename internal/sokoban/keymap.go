@@ -12,19 +12,19 @@ type keyMap struct {
 	Next     key.Binding
 	Previous key.Binding
 	Set      key.Binding
-	Quit     key.Binding
+	Home     key.Binding
 	Reset    key.Binding
 }
 
 func (k *keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Set, k.Quit}
+	return []key.Binding{k.Set, k.Home}
 }
 
 func (k *keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Left, k.Down, k.Right},
 		{k.Reset, k.Next, k.Previous},
-		{k.Set, k.Quit},
+		{k.Set, k.Home},
 	}
 }
 
@@ -62,9 +62,9 @@ func getKeys() *keyMap {
 			key.WithKeys("s"),
 			key.WithHelp("s", "set"),
 		),
-		Quit: key.NewBinding(
-			key.WithKeys("q"),
-			key.WithHelp("q", "quit"),
+		Home: key.NewBinding(
+			key.WithKeys("h"),
+			key.WithHelp("h", "home"),
 		),
 	}
 }

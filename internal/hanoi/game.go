@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/zrcoder/rdor/pkg/model"
 	"github.com/zrcoder/rdor/pkg/style"
 	"github.com/zrcoder/rdor/pkg/style/color"
 
@@ -17,6 +18,7 @@ import (
 )
 
 type hanoi struct {
+	parent   tea.Model
 	title    string
 	helpInfo string
 	disks    int
@@ -30,7 +32,8 @@ type hanoi struct {
 	err      error
 }
 
-func New() tea.Model { return &hanoi{} }
+func New() model.Game                       { return &hanoi{} }
+func (h *hanoi) SetParent(parent tea.Model) { h.parent = parent }
 
 type disk struct {
 	id   int
@@ -97,8 +100,8 @@ func (h *hanoi) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		h.err = nil
 		switch {
-		case key.Matches(msg, h.keys.Quit):
-			return h, tea.Quit
+		case key.Matches(msg, h.keys.Home):
+			return h.parent, nil
 		case key.Matches(msg, h.keys.Set):
 			h.set()
 		case key.Matches(msg, h.keys.Reset):
@@ -116,6 +119,8 @@ func (h *hanoi) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			h.setted(n)
 		case key.Matches(msg, h.keys.Piles):
 			h.pick(msg.String())
+		case msg.String() == "ctrl+c":
+			return h, tea.Quit
 		default:
 			if h.setting {
 				h.err = errDiskNum
@@ -224,9 +229,6 @@ func (h *hanoi) writeHead() {
 
 func (h *hanoi) writeSettingView() {
 	h.writeLine(settingHint)
-	if h.err != nil {
-		h.writeError(h.err)
-	}
 	h.writeBlankLine()
 }
 

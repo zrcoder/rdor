@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/zrcoder/rdor/pkg/grid"
+	"github.com/zrcoder/rdor/pkg/model"
 	"github.com/zrcoder/rdor/pkg/style"
 	"github.com/zrcoder/rdor/pkg/style/color"
 
@@ -19,6 +20,7 @@ import (
 )
 
 type last struct {
+	parent      tea.Model
 	title       string
 	levels      []*level
 	levelIndex  int
@@ -40,7 +42,8 @@ type last struct {
 	showHelp    bool
 }
 
-func New() tea.Model { return &last{} }
+func New() model.Game                      { return &last{} }
+func (l *last) SetParent(parent tea.Model) { l.parent = parent }
 
 type tickMsg time.Time
 
@@ -86,8 +89,8 @@ func (l *last) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		l.err = nil
 		switch {
-		case key.Matches(msg, l.keys.Quit):
-			return l, tea.Quit
+		case key.Matches(msg, l.keys.Home):
+			return l.parent, nil
 		case key.Matches(msg, l.keys.Reset):
 			l.setLevel()
 		case key.Matches(msg, l.keys.Next):
@@ -104,6 +107,8 @@ func (l *last) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return l, l.eat()
 		case key.Matches(msg, l.keys.Help):
 			l.showHelp = !l.showHelp
+		case msg.String() == "ctrl+c":
+			return l, tea.Quit
 		default:
 			if !l.setting {
 				return l, nil

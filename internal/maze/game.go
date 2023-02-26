@@ -7,6 +7,7 @@ import (
 
 	"github.com/zrcoder/rdor/internal/maze/levels"
 	"github.com/zrcoder/rdor/pkg/grid"
+	"github.com/zrcoder/rdor/pkg/model"
 	"github.com/zrcoder/rdor/pkg/style"
 
 	"github.com/charmbracelet/bubbles/help"
@@ -15,6 +16,7 @@ import (
 )
 
 type maze struct {
+	parent    tea.Model
 	title     string
 	helpInfo  string
 	charMap   map[rune]rune
@@ -29,7 +31,8 @@ type maze struct {
 	buf       *strings.Builder
 }
 
-func New() tea.Model { return &maze{} }
+func New() model.Game                      { return &maze{} }
+func (m *maze) SetParent(parent tea.Model) { m.parent = parent }
 
 var (
 	up    = grid.Up
@@ -71,8 +74,8 @@ func (m *maze) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, m.keys.Quit):
-			return m, tea.Quit
+		case key.Matches(msg, m.keys.Home):
+			return m.parent, nil
 		case key.Matches(msg, m.keys.Up):
 			m.move(up)
 		case key.Matches(msg, m.keys.Left):
@@ -85,6 +88,8 @@ func (m *maze) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.pickOne()
 		case key.Matches(msg, m.keys.Reset):
 			m.reset()
+		case msg.String() == "ctrl+c":
+			return m, tea.Quit
 		}
 	}
 	return m, nil

@@ -8,7 +8,9 @@ import (
 	"github.com/zrcoder/rdor/internal/hanoi"
 	"github.com/zrcoder/rdor/internal/last"
 	"github.com/zrcoder/rdor/internal/maze"
+	"github.com/zrcoder/rdor/internal/npuzzle"
 	"github.com/zrcoder/rdor/internal/sokoban"
+	"github.com/zrcoder/rdor/pkg/model"
 	"github.com/zrcoder/rdor/pkg/style"
 	"github.com/zrcoder/rdor/pkg/style/color"
 
@@ -20,10 +22,11 @@ import (
 //go:generate go run ./internal/maze/levels/tool
 func main() {
 	items := []list.Item{
-		item{name: "Hanoi", instance: hanoi.New()},
-		item{name: "Sokoban", instance: sokoban.New()},
-		item{name: "Maze", instance: maze.New()},
-		item{name: "Last", instance: last.New()},
+		item{name: "Hanoi", game: hanoi.New()},
+		item{name: "Sokoban", game: sokoban.New()},
+		item{name: "Maze", game: maze.New()},
+		item{name: "N-Puzzle", game: npuzzle.New()},
+		item{name: "Last", game: last.New()},
 	}
 	const listHeight = 14
 	const defaultWidth = 20
@@ -32,15 +35,18 @@ func main() {
 	m.list.Styles.Title = style.Title
 	m.list.SetShowStatusBar(false)
 	m.list.SetFilteringEnabled(false)
-	if _, err := tea.NewProgram(m).Run(); err != nil {
+	for _, it := range items {
+		it.(item).game.SetParent(m)
+	}
+	if _, err := tea.NewProgram(m, tea.WithAltScreen()).Run(); err != nil {
 		fmt.Println("Error running program:", err)
 		os.Exit(1)
 	}
 }
 
 type item struct {
-	name     string
-	instance tea.Model
+	name string
+	game model.Game
 }
 
 func (i item) FilterValue() string { return i.name }
@@ -85,7 +91,7 @@ func (m rdor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch val := msg.String(); val {
 		case "enter":
 			i := m.list.SelectedItem().(item)
-			return i.instance, i.instance.Init()
+			return i.game, i.game.Init()
 		}
 	}
 	var cmd tea.Cmd
