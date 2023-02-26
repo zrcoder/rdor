@@ -9,7 +9,6 @@ import (
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/zrcoder/rdor/pkg/grid"
 	"github.com/zrcoder/rdor/pkg/model"
 	"github.com/zrcoder/rdor/pkg/style"
@@ -30,7 +29,6 @@ type nPuzzle struct {
 	blank      grid.Position
 	directions []grid.Direction
 	rd         *rand.Rand
-	targetView string
 }
 
 func New() model.Game { return &nPuzzle{} }
@@ -51,6 +49,7 @@ func (p *nPuzzle) Init() tea.Cmd {
 	p.directions = []grid.Direction{grid.Up, grid.Left, grid.Down, grid.Right}
 	p.keys = getKeys()
 	p.keysHelp = help.New()
+	p.keysHelp.ShowAll = true
 	p.set()
 	return nil
 }
@@ -83,14 +82,15 @@ func (p *nPuzzle) View() string {
 	curBoard := p.drawBoard()
 	p.buf.Reset()
 	p.buf.WriteString("\n" + p.title + "\n\n")
-	p.buf.WriteString(lipgloss.JoinHorizontal(lipgloss.Center, p.targetView, " ← ", curBoard) + "\n")
+	p.buf.WriteString(curBoard)
+	p.buf.WriteString("\n\n")
 	p.buf.WriteString(p.help)
 	if p.success() {
 		p.buf.WriteString("  " + style.Success.Render("Success!"))
 	}
 	p.buf.WriteString("\n\n")
 	p.buf.WriteString(p.keysHelp.View(p.keys))
-	p.buf.WriteString("\n")
+	p.buf.WriteString("\n\n")
 	return p.buf.String()
 }
 
@@ -108,13 +108,17 @@ func (p *nPuzzle) set() {
 	p.grid.SetData(g)
 	p.blank = grid.Position{Row: p.n - 1, Col: p.n - 1}
 	p.target = grid.Copy(p.grid)
-	p.targetView = p.drawBoard()
 	p.shuffle()
 }
 
 func (p *nPuzzle) drawBoard() string {
 	p.buf.Reset()
-	p.buf.WriteString(strings.Repeat("•━━━━", p.n))
+	p.buf.WriteString("   ")
+	for _, v := range p.cols[:p.n] {
+		p.buf.WriteString(" " + v + "   ")
+	}
+	p.buf.WriteString("\n")
+	p.buf.WriteString("  " + strings.Repeat("•━━━━", p.n))
 	p.buf.WriteString("•\n")
 	p.grid.Range(func(pos grid.Position, char rune, isLineEnd bool) (end bool) {
 		s := "  "
@@ -122,12 +126,16 @@ func (p *nPuzzle) drawBoard() string {
 			r, c := int(char-1)/p.n, int(char-1)%p.n
 			s = p.rows[r] + p.cols[c]
 		}
-
+		if pos.Col == 0 {
+			p.buf.WriteString(p.rows[pos.Row] + " ")
+		}
 		p.buf.WriteString("┃ " + s + " ")
 		if isLineEnd {
 			p.buf.WriteString("┃\n")
-			p.buf.WriteString(strings.Repeat("•━━━━", p.n))
-			p.buf.WriteString("•\n")
+			p.buf.WriteString("  " + strings.Repeat("•━━━━", p.n))
+			if pos.Row != p.n-1 {
+				p.buf.WriteString("•\n")
+			}
 		}
 		return false
 	})
