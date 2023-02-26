@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"strconv"
 	"strings"
 
 	"github.com/zrcoder/rdor/pkg/model"
@@ -26,7 +25,6 @@ type hanoi struct {
 	overDisk *disk
 	keys     *keyMap
 	keysHelp help.Model
-	setting  bool
 	buf      *strings.Builder
 	steps    int
 	err      error
@@ -62,8 +60,6 @@ const (
 	pole1Label    = "1"
 	pole2Label    = "2"
 	pole3Label    = "3"
-
-	settingHint = "How many disks do you like?"
 )
 
 var (
@@ -89,7 +85,6 @@ func (h *hanoi) Init() tea.Cmd {
 	h.helpInfo = style.Help.Render("Our goal is to move all disks from pile `1` to pile `3`.")
 	h.keys = getKeys()
 	h.keysHelp = help.New()
-	h.keysHelp.ShowAll = true
 	h.buf = &strings.Builder{}
 	h.setted(defaultDisks)
 	return nil
@@ -102,8 +97,6 @@ func (h *hanoi) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, h.keys.Home):
 			return h.parent, nil
-		case key.Matches(msg, h.keys.Set):
-			h.set()
 		case key.Matches(msg, h.keys.Reset):
 			h.setted(h.disks)
 		case key.Matches(msg, h.keys.Next):
@@ -114,17 +107,11 @@ func (h *hanoi) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if h.disks-1 > 0 {
 				h.setted(h.disks - 1)
 			}
-		case key.Matches(msg, h.keys.Disks):
-			n, _ := strconv.Atoi(msg.String())
-			h.setted(n)
 		case key.Matches(msg, h.keys.Piles):
 			h.pick(msg.String())
 		case msg.String() == "ctrl+c":
 			return h, tea.Quit
 		default:
-			if h.setting {
-				h.err = errDiskNum
-			}
 		}
 	}
 	return h, nil
@@ -138,35 +125,15 @@ func (h *hanoi) View() string {
 	h.writeLabels()
 	h.writeState()
 	h.writeHelpInfo()
-	if h.setting {
-		h.writeSettingView()
-	}
 	h.writeKeysHelp()
 	return h.buf.String()
 }
 
-func (h *hanoi) set() {
-	h.setting = true
-	h.keys.Disks.SetEnabled(true)
-	h.keys.Piles.SetEnabled(false)
-	h.keys.Set.SetEnabled(false)
-	h.keys.Next.SetEnabled(false)
-	h.keys.Previous.SetEnabled(false)
-	h.keys.Reset.SetEnabled(false)
-}
-
 func (h *hanoi) setted(n int) {
-	h.setting = false
 	h.disks = n
 	h.steps = 0
 	h.overDisk = nil
 	h.err = nil
-	h.keys.Disks.SetEnabled(false)
-	h.keys.Piles.SetEnabled(true)
-	h.keys.Set.SetEnabled(true)
-	h.keys.Next.SetEnabled(true)
-	h.keys.Previous.SetEnabled(true)
-	h.keys.Reset.SetEnabled(true)
 	h.piles = make([]*pile, 3)
 	for i := range h.piles {
 		h.piles[i] = &pile{}
@@ -225,11 +192,6 @@ func (h *hanoi) pick(key string) {
 
 func (h *hanoi) writeHead() {
 	h.buf.WriteString("\n" + h.title + "\n")
-}
-
-func (h *hanoi) writeSettingView() {
-	h.writeLine(settingHint)
-	h.writeBlankLine()
 }
 
 func (h *hanoi) writePoles() {

@@ -27,12 +27,12 @@ func getKeys() *keyMap {
 			key.WithKeys("1", "2", "3", "4"),
 		),
 		Next: key.NewBinding(
-			key.WithKeys("right"),
-			key.WithHelp("→", "next"),
+			key.WithKeys("n"),
+			key.WithHelp("n", "next"),
 		),
 		Previous: key.NewBinding(
-			key.WithKeys("left"),
-			key.WithHelp("←", "previous"),
+			key.WithKeys("p"),
+			key.WithHelp("p", "previous"),
 		),
 		Reset: key.NewBinding(
 			key.WithKeys("r"),

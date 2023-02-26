@@ -5,33 +5,27 @@ import (
 )
 
 type keyMap struct {
-	Disks    key.Binding
 	Piles    key.Binding
 	Next     key.Binding
 	Previous key.Binding
 	Reset    key.Binding
-	Set      key.Binding
 	Home     key.Binding
 }
 
 func (k *keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Disks, k.Piles, k.Set, k.Home}
+	return []key.Binding{k.Piles, k.Reset, k.Next, k.Previous, k.Home}
 }
 
 func (k *keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Disks, k.Piles, k.Reset},
+		{k.Piles},
 		{k.Next, k.Previous},
-		{k.Set, k.Home},
+		{k.Reset, k.Home},
 	}
 }
 
 func getKeys() *keyMap {
 	return &keyMap{
-		Disks: key.NewBinding(
-			key.WithKeys("1", "2", "3", "4", "5", "6", "7"),
-			key.WithHelp("1-7", "set disks"),
-		),
 		Piles: key.NewBinding(
 			key.WithKeys("1", "2", "3", "j", "k", "l"),
 			key.WithHelp("1-3/j,k,l", "pick a pile"),
@@ -47,10 +41,6 @@ func getKeys() *keyMap {
 		Reset: key.NewBinding(
 			key.WithKeys("r"),
 			key.WithHelp("r", "reset"),
-		),
-		Set: key.NewBinding(
-			key.WithKeys("s"),
-			key.WithHelp("s", "set"),
 		),
 		Home: key.NewBinding(
 			key.WithKeys("h"),
