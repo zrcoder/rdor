@@ -182,6 +182,8 @@ func (l *last) View() string {
 
 func (l *last) setLevel() {
 	l.setting = true // wait for the user to decide whether to get started first
+	l.keys.Next.SetEnabled(false)
+	l.keys.Previous.SetEnabled(false)
 	l.keys.Numbers.SetEnabled(false)
 	l.eatingPath = &pathStack{}
 	l.commonCells = l.currentLevel().totalCells - 2 // minus the 2 plays
@@ -189,10 +191,10 @@ func (l *last) setLevel() {
 		playSyles[i], playSyles[j] = playSyles[j], playSyles[i]
 	})
 	l.charDic = map[rune]string{
-		blank: "   ",
-		cell:  " ◎ ",
-		me:    playSyles[0].Render(" ◉ "),
-		rival: playSyles[1].Render(" ◉ "),
+		blank: "     ",
+		cell:  "  ◎  ",
+		me:    playSyles[0].Render("  ◉  "),
+		rival: playSyles[1].Render("  ◉  "),
 	}
 	l.genCells()
 	l.playerIndex = 0
@@ -201,6 +203,8 @@ func (l *last) setLevel() {
 func (l *last) setted() {
 	l.setting = false
 	l.keys.Numbers.SetEnabled(true)
+	l.keys.Next.SetEnabled(true)
+	l.keys.Previous.SetEnabled(true)
 	ks := []string{"1", "2", "3", "4"}
 	l.keys.Numbers.SetKeys(ks[:l.currentLevel().eatingMax]...)
 	l.keys.Numbers.SetHelp(fmt.Sprintf("1-%d", l.currentLevel().eatingMax), "cells to eat")
