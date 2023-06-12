@@ -69,8 +69,11 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	}
 	fn := itemRender
 	if index == m.Index() {
-		fn = func(s string) string {
-			return itemSelectedRender("> " + s)
+		fn = func(s ...string) string {
+			if len(s) == 0 {
+				return "> "
+			}
+			return itemSelectedRender("> " + s[0])
 		}
 	}
 	fmt.Fprint(w, fn(fmt.Sprintf("%d. %s", index+1, i.name)))
