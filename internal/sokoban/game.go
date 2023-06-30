@@ -123,15 +123,18 @@ func (s *sokoban) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (s *sokoban) View() string {
-	if s.err != nil {
-		return dialog.Error(s.err.Error()).WhiteSpaceChars(Name).String()
-	}
-	if s.showSuccess {
-		return dialog.Success("").WhiteSpaceChars(Name).String()
-	}
-
 	s.buf.Reset()
 	s.buf.WriteString("\n" + s.title + "\n\n")
+
+	if s.err != nil {
+		s.buf.WriteString(dialog.Error(s.err.Error()).WhiteSpaceChars(Name).String())
+		return s.buf.String()
+	}
+	if s.showSuccess {
+		s.buf.WriteString(dialog.Success("").WhiteSpaceChars(Name).String())
+		return s.buf.String()
+	}
+
 	s.grid.Range(func(pos grid.Position, char rune, isLineEnd bool) (end bool) {
 		s.buf.WriteString(s.blocks[char])
 		if isLineEnd {

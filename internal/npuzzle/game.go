@@ -83,13 +83,15 @@ func (p *nPuzzle) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return p, nil
 }
 func (p *nPuzzle) View() string {
+	p.buf.Reset()
+	p.buf.WriteString("\n" + p.title + "\n\n")
+
 	if p.showSuccess {
-		return dialog.Success("").WhiteSpaceChars(Name).String()
+		p.buf.WriteString(dialog.Success("").WhiteSpaceChars(Name).String())
+		return p.buf.String()
 	}
 
 	curBoard := p.drawBoard()
-	p.buf.Reset()
-	p.buf.WriteString("\n" + p.title + "\n\n")
 	p.buf.WriteString(curBoard)
 	p.buf.WriteString("\n\n")
 	p.buf.WriteString(p.help)

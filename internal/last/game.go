@@ -142,19 +142,22 @@ func (l *last) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (l *last) View() string {
-	if l.err != nil {
-		return dialog.Error(l.err.Error()).WhiteSpaceChars(Name).String()
-	}
-
-	if l.showSuccess {
-		return dialog.Success("You are the last :)").WhiteSpaceChars(Name).String()
-	} else if l.showFailure {
-		return dialog.Error("Your river is the last :(").WhiteSpaceChars(Name).String()
-	}
-
 	l.buf.Reset()
 	l.buf.WriteString("\n" + l.title + "\n")
 	l.buf.WriteString("\n")
+
+	if l.err != nil {
+		l.buf.WriteString(dialog.Error(l.err.Error()).WhiteSpaceChars(Name).String())
+		return l.buf.String()
+	}
+
+	if l.showSuccess {
+		l.buf.WriteString(dialog.Success("You are the last :)").WhiteSpaceChars(Name).String())
+		return l.buf.String()
+	} else if l.showFailure {
+		l.buf.WriteString(dialog.Error("Your river is the last :(").WhiteSpaceChars(Name).String())
+		return l.buf.String()
+	}
 
 	l.grid.Range(func(pos grid.Position, char rune, isLineEnd bool) (end bool) {
 		l.buf.WriteString(l.charDic[char])

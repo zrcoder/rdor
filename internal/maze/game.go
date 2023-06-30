@@ -100,12 +100,13 @@ func (m *maze) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *maze) View() string {
-	if m.showSuccess {
-		return dialog.Success("").WhiteSpaceChars(Name).String()
-	}
-
 	m.buf.Reset()
 	m.buf.WriteString("\n" + m.title + "\n\n")
+
+	if m.showSuccess {
+		m.buf.WriteString(dialog.Success("").WhiteSpaceChars(Name).String())
+		return m.buf.String()
+	}
 
 	m.grid.Range(func(pos grid.Position, char rune, isLineEnd bool) (end bool) {
 		m.buf.WriteRune(char)

@@ -121,14 +121,19 @@ func (h *hanoi) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (h *hanoi) View() string {
-	if h.showSuccess {
-		return h.successView()
-	} else if h.err != nil {
-		return dialog.Error(h.err.Error()).WhiteSpaceChars(Name).String()
-	}
-
 	h.buf.Reset()
 	h.writeHead()
+
+	if h.showSuccess {
+		h.buf.WriteString(h.successView())
+		return h.buf.String()
+	}
+
+	if h.err != nil {
+		h.buf.WriteString(dialog.Error(h.err.Error()).WhiteSpaceChars(Name).String())
+		return h.buf.String()
+	}
+
 	h.writePoles()
 	h.writeGround()
 	h.writeLabels()

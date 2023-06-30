@@ -31,7 +31,7 @@ func main() {
 	const listHeight = 14
 	const defaultWidth = 20
 	m := rdor{list: list.New(items, itemDelegate{}, defaultWidth, listHeight)}
-	m.list.Title = "Welcome to `rdor`"
+	m.list.Title = "Welcome to rdor"
 	m.list.Styles.Title = style.Title
 	m.list.SetShowStatusBar(false)
 	m.list.SetFilteringEnabled(false)
