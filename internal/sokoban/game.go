@@ -7,13 +7,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/zrcoder/rdor/pkg/dialog"
+	"github.com/zrcoder/rdor/internal/internal"
 	"github.com/zrcoder/rdor/pkg/grid"
+	"github.com/zrcoder/rdor/pkg/keys"
 	"github.com/zrcoder/rdor/pkg/model"
 	"github.com/zrcoder/rdor/pkg/style"
 	"github.com/zrcoder/rdor/pkg/style/color"
 
-	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -21,26 +21,34 @@ import (
 )
 
 type sokoban struct {
-	parent   tea.Model
-	title    string
+	*internal.Game
 	helpInfo string
 	blocks   map[rune]string
 
 	level    int
-	keys     *keyMap
-	keysHelp help.Model
+	upKey    key.Binding
+	leftKey  key.Binding
+	downKey  key.Binding
+	rightKey key.Binding
+	setKey   key.Binding
 	input    textinput.Model
 
-	helpGrid    *grid.Grid
-	grid        *grid.Grid
-	err         error
-	myPos       grid.Position
-	buf         *strings.Builder
-	showSuccess bool
+	helpGrid *grid.Grid
+	grid     *grid.Grid
+	myPos    grid.Position
+	buf      *strings.Builder
 }
 
-func New() model.Game                         { return &sokoban{} }
-func (s *sokoban) SetParent(parent tea.Model) { s.parent = parent }
+func New() model.Game {
+	base := internal.New(Name)
+	res := &sokoban{Game: base}
+	base.InitFunc = res.initialize
+	base.UpdateFunc = res.update
+	base.ViewFunc = res.view
+	base.KeyFuncReset = res.reset
+	return res
+}
+func (s *sokoban) SetParent(parent tea.Model) { s.Parent = parent }
 
 const (
 	Name             = "Sokoban"
@@ -59,8 +67,7 @@ const (
 //go:embed levels
 var levelsFS embed.FS
 
-func (s *sokoban) Init() tea.Cmd {
-	s.title = style.Title.Render("Sokoban")
+func (s *sokoban) initialize() tea.Cmd {
 	s.helpInfo = style.Help.Render("Our goal is to push all the boxes into the slots without been stuck somewhere.")
 	s.blocks = map[rune]string{
 		wall:      lipgloss.NewStyle().Background(color.Orange).Render(" = "),
@@ -71,46 +78,40 @@ func (s *sokoban) Init() tea.Cmd {
 		boxInSlot: lipgloss.NewStyle().Background(color.Green).Render("   "),
 		meInSlot:  lipgloss.NewStyle().Background(color.Violet).Render(" ⦿ "),
 	}
-	s.keys = getKeys()
-	s.keysHelp = help.New()
+
+	s.upKey = keys.Up
+	s.leftKey = keys.Left
+	s.downKey = keys.Down
+	s.rightKey = keys.Right
+	s.setKey = key.NewBinding(
+		key.WithKeys("s"),
+		key.WithHelp("s", "set"),
+	)
+	s.SetExtraKeys([]key.Binding{s.upKey, s.leftKey, s.downKey, s.rightKey, s.setKey})
+
 	s.input = textinput.New()
 	s.buf = &strings.Builder{}
-	s.keysHelp.ShowAll = true
 	s.loadLever()
 	s.input.Placeholder = inputPlaceholder
 	return nil
 }
 
-func (s *sokoban) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (s *sokoban) update(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 	s.input, cmd = s.input.Update(msg)
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		s.err = nil
-		s.showSuccess = false
 		switch {
-		case key.Matches(msg, s.keys.Home):
-			return s.parent, nil
-		case key.Matches(msg, s.keys.Up):
+		case key.Matches(msg, s.upKey):
 			s.move(grid.Up)
-		case key.Matches(msg, s.keys.Left):
+		case key.Matches(msg, s.leftKey):
 			s.move(grid.Left)
-		case key.Matches(msg, s.keys.Down):
+		case key.Matches(msg, s.downKey):
 			s.move(grid.Down)
-		case key.Matches(msg, s.keys.Right):
+		case key.Matches(msg, s.rightKey):
 			s.move(grid.Right)
-		case key.Matches(msg, s.keys.Next):
-			s.level = (s.level + 1) % maxLevel
-			s.loadLever()
-		case key.Matches(msg, s.keys.Previous):
-			s.level = (s.level + maxLevel - 1) % maxLevel
-			s.loadLever()
-		case key.Matches(msg, s.keys.Set):
-			return s, s.input.Focus()
-		case key.Matches(msg, s.keys.Reset):
-			s.reset()
-		case msg.String() == "ctrl+c":
-			return s, tea.Quit
+		case key.Matches(msg, s.setKey):
+			return s.input.Focus()
 		default:
 			if msg.Type == tea.KeyEnter && s.input.Focused() {
 				s.input.Blur()
@@ -119,21 +120,11 @@ func (s *sokoban) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	}
-	return s, cmd
+	return cmd
 }
 
-func (s *sokoban) View() string {
+func (s *sokoban) view() string {
 	s.buf.Reset()
-	s.buf.WriteString("\n" + s.title + "\n\n")
-
-	if s.err != nil {
-		s.buf.WriteString(dialog.Error(s.err.Error()).WhiteSpaceChars(Name).String())
-		return s.buf.String()
-	}
-	if s.showSuccess {
-		s.buf.WriteString(dialog.Success("").WhiteSpaceChars(Name).String())
-		return s.buf.String()
-	}
 
 	s.grid.Range(func(pos grid.Position, char rune, isLineEnd bool) (end bool) {
 		s.buf.WriteString(s.blocks[char])
@@ -150,7 +141,6 @@ func (s *sokoban) View() string {
 		s.buf.WriteString(s.input.View())
 	} else {
 		s.buf.WriteString("\n" + s.helpInfo + "\n")
-		s.buf.WriteString("\n" + s.keysHelp.View(s.keys))
 	}
 	s.buf.WriteByte('\n')
 	return s.buf.String()
@@ -159,11 +149,11 @@ func (s *sokoban) View() string {
 func (s *sokoban) setted(level string) {
 	n, err := strconv.Atoi(level)
 	if err != nil {
-		s.err = errors.New("invalid number")
+		s.SetError(errors.New("invalid number"))
 		return
 	}
 	if n < 1 || n > maxLevel+1 {
-		s.err = errors.New("level out of range")
+		s.SetError(errors.New("level out of range"))
 		return
 	}
 	s.level = n - 1
@@ -205,7 +195,9 @@ func (s *sokoban) move(d grid.Direction) {
 			s.moveMe(pos)
 		}
 	}
-	s.showSuccess = s.success()
+	if s.success() {
+		s.SetSuccess("")
+	}
 }
 
 func (s *sokoban) moveMe(p grid.Position) {

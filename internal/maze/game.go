@@ -5,36 +5,45 @@ import (
 	"strings"
 	"time"
 
+	"github.com/zrcoder/rdor/internal/internal"
 	"github.com/zrcoder/rdor/internal/maze/levels"
-	"github.com/zrcoder/rdor/pkg/dialog"
 	"github.com/zrcoder/rdor/pkg/grid"
+	"github.com/zrcoder/rdor/pkg/keys"
 	"github.com/zrcoder/rdor/pkg/model"
 	"github.com/zrcoder/rdor/pkg/style"
 
-	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 type maze struct {
-	parent      tea.Model
-	title       string
-	helpInfo    string
-	charMap     map[rune]rune
-	keys        *keyMap
-	keysHelp    help.Model
-	myPos       grid.Position
-	goals       map[grid.Position]bool
-	grid        *grid.Grid
-	helpGrid    *grid.Grid
-	rand        *rand.Rand
-	levelName   string
-	buf         *strings.Builder
-	showSuccess bool
+	*internal.Game
+	helpInfo  string
+	charMap   map[rune]rune
+	upKey     key.Binding
+	downKey   key.Binding
+	leftKey   key.Binding
+	rightKey  key.Binding
+	pickKey   key.Binding
+	myPos     grid.Position
+	goals     map[grid.Position]bool
+	grid      *grid.Grid
+	helpGrid  *grid.Grid
+	rand      *rand.Rand
+	levelName string
+	buf       *strings.Builder
 }
 
-func New() model.Game                      { return &maze{} }
-func (m *maze) SetParent(parent tea.Model) { m.parent = parent }
+func New() model.Game {
+	base := internal.New(Name)
+	res := &maze{Game: base}
+	base.InitFunc = res.initialize
+	base.UpdateFunc = res.update
+	base.KeyFuncReset = res.reset
+	base.ViewFunc = res.view
+	return res
+}
+func (m *maze) SetParent(parent tea.Model) { m.Parent = parent }
 
 var (
 	up    = grid.Up
@@ -49,12 +58,11 @@ const (
 	horizontalWall = '━'
 	corner         = '•'
 	me             = '⦿'
-	goal           = '❀' // ★
+	goal           = '❀'
 	blank          = ' '
 )
 
-func (m *maze) Init() tea.Cmd {
-	m.title = style.Title.Render("Maze")
+func (m *maze) initialize() tea.Cmd {
 	m.helpInfo = style.Help.Render("Our goal is to take all the flowers in the maze.")
 	m.charMap = map[rune]rune{
 		'|':   verticalWall,
@@ -66,47 +74,45 @@ func (m *maze) Init() tea.Cmd {
 	}
 	m.rand = rand.New(rand.NewSource(int64(time.Now().UnixNano())))
 	m.pickOne()
-	m.keys = getKeys()
-	m.keysHelp = help.New()
-	m.keysHelp.ShowAll = true
+	m.initKeys()
 	m.buf = &strings.Builder{}
 	return nil
 }
 
-func (m *maze) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		m.showSuccess = false
-		switch {
-		case key.Matches(msg, m.keys.Home):
-			return m.parent, nil
-		case key.Matches(msg, m.keys.Up):
-			m.move(up)
-		case key.Matches(msg, m.keys.Left):
-			m.move(left)
-		case key.Matches(msg, m.keys.Down):
-			m.move(down)
-		case key.Matches(msg, m.keys.Right):
-			m.move(right)
-		case key.Matches(msg, m.keys.Pick):
-			m.pickOne()
-		case key.Matches(msg, m.keys.Reset):
-			m.reset()
-		case msg.String() == "ctrl+c":
-			return m, tea.Quit
-		}
-	}
-	return m, nil
+func (m *maze) initKeys() {
+	m.upKey = keys.Up
+	m.leftKey = keys.Left
+	m.downKey = keys.Down
+	m.rightKey = keys.Right
+	m.pickKey = key.NewBinding(
+		key.WithKeys("p"),
+		key.WithHelp("p", "pick one random level"),
+	)
+
+	m.SetExtraKeys([]key.Binding{m.upKey, m.leftKey, m.downKey, m.rightKey, m.pickKey})
 }
 
-func (m *maze) View() string {
-	m.buf.Reset()
-	m.buf.WriteString("\n" + m.title + "\n\n")
-
-	if m.showSuccess {
-		m.buf.WriteString(dialog.Success("").WhiteSpaceChars(Name).String())
-		return m.buf.String()
+func (m *maze) update(msg tea.Msg) tea.Cmd {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch {
+		case key.Matches(msg, m.upKey):
+			m.move(up)
+		case key.Matches(msg, m.leftKey):
+			m.move(left)
+		case key.Matches(msg, m.downKey):
+			m.move(down)
+		case key.Matches(msg, m.rightKey):
+			m.move(right)
+		case key.Matches(msg, m.pickKey):
+			m.pickOne()
+		}
 	}
+	return nil
+}
+
+func (m *maze) view() string {
+	m.buf.Reset()
 
 	m.grid.Range(func(pos grid.Position, char rune, isLineEnd bool) (end bool) {
 		m.buf.WriteRune(char)
@@ -117,10 +123,8 @@ func (m *maze) View() string {
 	})
 
 	m.buf.WriteString(style.Help.Render("level: " + m.levelName))
-	m.buf.WriteString("\n\n")
+	m.buf.WriteByte('\n')
 	m.buf.WriteString(style.Help.Render(m.helpInfo))
-	m.buf.WriteString("\n\n")
-	m.buf.WriteString(m.keysHelp.View(m.keys))
 	m.buf.WriteByte('\n')
 	return m.buf.String()
 }
@@ -171,7 +175,9 @@ func (m *maze) move(d grid.Direction) {
 	}
 	pos = grid.TransForm(pos, d)
 	m.moveMe(pos)
-	m.showSuccess = m.success()
+	if m.success() {
+		m.SetSuccess("")
+	}
 }
 
 func (m *maze) moveMe(pos grid.Position) {

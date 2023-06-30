@@ -8,27 +8,26 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zrcoder/rdor/pkg/dialog"
+	"github.com/zrcoder/rdor/internal/internal"
 	"github.com/zrcoder/rdor/pkg/grid"
 	"github.com/zrcoder/rdor/pkg/model"
 	"github.com/zrcoder/rdor/pkg/style"
 	"github.com/zrcoder/rdor/pkg/style/color"
 
-	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
 type last struct {
-	parent      tea.Model
-	title       string
+	*internal.Game
+
+	numbersKey key.Binding
+
 	levels      []*level
 	levelIndex  int
 	commonCells int // the lefted commen cells' number, exclude the 2 players
 	rd          *rand.Rand
-	keys        *keyMap
-	keysHepl    help.Model
 	grid        *grid.Grid
 	helpGrid    *grid.Grid
 	charDic     map[rune]string
@@ -39,14 +38,20 @@ type last struct {
 	eating      bool
 	eatingPath  *pathStack
 	setting     bool
-	err         error
-	showHelp    bool
-	showSuccess bool
-	showFailure bool
 }
 
-func New() model.Game                      { return &last{} }
-func (l *last) SetParent(parent tea.Model) { l.parent = parent }
+func New() model.Game {
+	base := internal.New(Name)
+	res := &last{Game: base}
+	base.InitFunc = res.initialize
+	base.UpdateFunc = res.update
+	base.ViewFunc = res.view
+	base.KeyFuncReset = res.setLevel
+	base.KeyFuncNext = res.nextLevel
+	base.KeyFuncPrevious = res.previousLevel
+	return res
+}
+func (l *last) SetParent(parent tea.Model) { l.Parent = parent }
 
 type tickMsg time.Time
 
@@ -75,56 +80,37 @@ var playSyles = []lipgloss.Style{
 	lipgloss.NewStyle().Foreground(color.Violet),
 }
 
-func (l *last) Init() tea.Cmd {
-	l.title = style.Title.Render("Last")
+func (l *last) initialize() tea.Cmd {
 	l.rd = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
-	l.keys = getKeys()
-	l.keysHepl = help.New()
 	l.levels = getDefaultLevers()
 	l.buf = &strings.Builder{}
 	l.setLevel()
 	return l.lifeTransform()
 }
-
-func (l *last) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (l *last) update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tickMsg:
-		return l, tea.Batch(l.lifeTransform(), l.eat())
+		return tea.Batch(l.lifeTransform(), l.eat())
 	case tea.KeyMsg:
-		l.err = nil
-		l.showSuccess = false
-		l.showFailure = false
 		switch {
-		case key.Matches(msg, l.keys.Home):
-			return l.parent, nil
-		case key.Matches(msg, l.keys.Reset):
-			l.setLevel()
-		case key.Matches(msg, l.keys.Next):
-			l.levelIndex = (l.levelIndex + 1) % len(l.levels)
-			l.setLevel()
-		case key.Matches(msg, l.keys.Previous):
-			l.levelIndex = (l.levelIndex + len(l.levels) - 1) % len(l.levels)
-			l.setLevel()
-		case key.Matches(msg, l.keys.Numbers):
+		case key.Matches(msg, l.numbersKey):
 			n, _ := strconv.Atoi(msg.String())
 			l.playerIndex = 0
 			l.eatingLeft = n
 			l.eating = true
-			return l, l.eat()
-		case key.Matches(msg, l.keys.Help):
-			l.showHelp = !l.showHelp
-		case msg.String() == "ctrl+c":
-			return l, tea.Quit
+			return l.eat()
 		default:
 			if !l.setting {
-				return l, nil
+				return nil
 			}
 			switch msg.String() {
 			case "0", "1", "2", "3", "4", "5", "6", "7", "8", "9":
 				if l.setting || l.eating {
-					l.err = errors.New("wait, please")
+					err := errors.New("wait, please")
+					l.SetError(err)
 				} else {
-					l.err = fmt.Errorf("only 1-%d cells can be eaten each turn", l.currentLevel().eatingMax)
+					err := fmt.Errorf("only 1-%d cells can be eaten each turn", l.currentLevel().eatingMax)
+					l.SetError(err)
 				}
 			case "y", "Y", "enter":
 				if l.setting {
@@ -138,26 +124,11 @@ func (l *last) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	}
-	return l, nil
+	return nil
 }
 
-func (l *last) View() string {
+func (l *last) view() string {
 	l.buf.Reset()
-	l.buf.WriteString("\n" + l.title + "\n")
-	l.buf.WriteString("\n")
-
-	if l.err != nil {
-		l.buf.WriteString(dialog.Error(l.err.Error()).WhiteSpaceChars(Name).String())
-		return l.buf.String()
-	}
-
-	if l.showSuccess {
-		l.buf.WriteString(dialog.Success("You are the last :)").WhiteSpaceChars(Name).String())
-		return l.buf.String()
-	} else if l.showFailure {
-		l.buf.WriteString(dialog.Error("Your river is the last :(").WhiteSpaceChars(Name).String())
-		return l.buf.String()
-	}
 
 	l.grid.Range(func(pos grid.Position, char rune, isLineEnd bool) (end bool) {
 		l.buf.WriteString(l.charDic[char])
@@ -181,22 +152,34 @@ func (l *last) View() string {
 		}
 	}
 	l.buf.WriteString("\n")
-	if l.showHelp {
-		l.buf.WriteString("\n")
-		l.buf.WriteString(l.currentLevel().View() + "\n")
-	}
-	l.buf.WriteString("\n")
-	l.buf.WriteString(l.keysHepl.View(l.keys))
 	return l.buf.String()
 }
 
+func (l *last) nextLevel() {
+	l.levelIndex = (l.levelIndex + 1) % len(l.levels)
+	l.setLevel()
+}
+func (l *last) previousLevel() {
+	l.levelIndex = (l.levelIndex + len(l.levels) - 1) % len(l.levels)
+	l.setLevel()
+}
 func (l *last) setLevel() {
 	l.setting = true // wait for the user to decide whether to get started first
-	l.keys.Next.SetEnabled(false)
-	l.keys.Previous.SetEnabled(false)
-	l.keys.Numbers.SetEnabled(false)
+	l.Keys.Next.SetEnabled(false)
+	l.Keys.Previous.SetEnabled(false)
+	l.numbersKey.SetEnabled(false)
 	l.eatingPath = &pathStack{}
-	l.commonCells = l.currentLevel().totalCells - 2 // minus the 2 plays
+	curLvl := l.currentLevel()
+	l.commonCells = curLvl.totalCells - 2 // minus the 2 plays
+	keys := []string{}
+	for i := 1; i <= curLvl.eatingMax; i++ {
+		keys = append(keys, strconv.Itoa(i))
+	}
+	l.numbersKey = key.NewBinding(
+		key.WithKeys(keys...),
+		key.WithHelp(fmt.Sprintf("1-%d", curLvl.eatingMax), "cells to eatk"),
+	)
+	l.SetExtraKeys([]key.Binding{l.numbersKey})
 	l.rd.Shuffle(len(playSyles), func(i, j int) {
 		playSyles[i], playSyles[j] = playSyles[j], playSyles[i]
 	})
@@ -212,12 +195,12 @@ func (l *last) setLevel() {
 
 func (l *last) setted() {
 	l.setting = false
-	l.keys.Numbers.SetEnabled(true)
-	l.keys.Next.SetEnabled(true)
-	l.keys.Previous.SetEnabled(true)
+	l.numbersKey.SetEnabled(true)
+	l.Keys.Next.SetEnabled(true)
+	l.Keys.Previous.SetEnabled(true)
 	ks := []string{"1", "2", "3", "4"}
-	l.keys.Numbers.SetKeys(ks[:l.currentLevel().eatingMax]...)
-	l.keys.Numbers.SetHelp(fmt.Sprintf("1-%d", l.currentLevel().eatingMax), "cells to eat")
+	l.numbersKey.SetKeys(ks[:l.currentLevel().eatingMax]...)
+	l.numbersKey.SetHelp(fmt.Sprintf("1-%d", l.currentLevel().eatingMax), "cells to eat")
 }
 
 func (l *last) genCells() {
@@ -347,9 +330,9 @@ func (l *last) eat() tea.Cmd {
 		l.commonCells--
 	}
 	if l.success() {
-		l.showSuccess = true
+		l.SetSuccess("Your are the last :)")
 	} else if l.fail() {
-		l.showFailure = true
+		l.SetFailure("Your rival is the last :(")
 	}
 	if l.eatingLeft == 0 {
 		return l.changeTurn()
@@ -420,7 +403,7 @@ func (l *last) currentLevel() *level {
 
 func (l *last) changeTurn() tea.Cmd {
 	if l.ended() {
-		l.keys.Numbers.SetEnabled(false)
+		l.numbersKey.SetEnabled(false)
 		return nil
 	}
 	l.playerIndex ^= 1      // 0->1 / 1->0

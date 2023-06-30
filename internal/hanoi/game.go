@@ -6,34 +6,59 @@ import (
 	"math/rand"
 	"strings"
 
-	"github.com/zrcoder/rdor/pkg/dialog"
+	"github.com/zrcoder/rdor/internal/internal"
 	"github.com/zrcoder/rdor/pkg/model"
 	"github.com/zrcoder/rdor/pkg/style"
 	"github.com/zrcoder/rdor/pkg/style/color"
 
-	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
 type hanoi struct {
-	parent      tea.Model
-	title       string
-	helpInfo    string
-	disks       int
-	piles       []*pile
-	overDisk    *disk
-	keys        *keyMap
-	keysHelp    help.Model
-	buf         *strings.Builder
-	steps       int
-	err         error
-	showSuccess bool
+	*internal.Game
+	helpInfo string
+	disks    int
+	piles    []*pile
+	overDisk *disk
+	pilesKey key.Binding
+	buf      *strings.Builder
+	steps    int
 }
 
-func New() model.Game                       { return &hanoi{} }
-func (h *hanoi) SetParent(parent tea.Model) { h.parent = parent }
+func New() model.Game {
+	g := internal.New(Name)
+	res := &hanoi{Game: g}
+	g.InitFunc = res.initialize
+	g.UpdateFunc = res.update
+	g.ViewFunc = res.view
+	res.pilesKey = key.NewBinding(
+		key.WithKeys("1", "2", "3", "j", "k", "l"),
+		key.WithHelp("1-3/j,k,l", "pick a pile"),
+	)
+	g.SetExtraKeys([]key.Binding{res.pilesKey})
+	g.KeyFuncReset = res.reset
+	g.KeyFuncPrevious = res.previousLevel
+	g.KeyFuncNext = res.nextLevel
+	return res
+}
+func (h *hanoi) SetParent(parent tea.Model) { h.Parent = parent }
+
+func (h *hanoi) reset() {
+	h.setted(h.disks)
+}
+func (h *hanoi) previousLevel() {
+	if h.disks-1 > 0 {
+		h.setted(h.disks - 1)
+	}
+}
+func (h *hanoi) nextLevel() {
+	if h.disks+1 <= maxDisks {
+		h.setted(h.disks + 1)
+	}
+
+}
 
 type disk struct {
 	id   int
@@ -79,97 +104,61 @@ var (
 	}
 )
 
-func (h *hanoi) Init() tea.Cmd {
-	h.title = style.Title.Render("Hanoi")
+func (h *hanoi) initialize() tea.Cmd {
 	h.helpInfo = style.Help.Render("Our goal is to move all disks from pile `1` to pile `3`.")
-	h.keys = getKeys()
-	h.keysHelp = help.New()
 	h.buf = &strings.Builder{}
 	h.setted(defaultDisks)
 	return nil
 }
 
-func (h *hanoi) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (h *hanoi) update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		h.err = nil
-		h.showSuccess = false
 		switch {
-		case key.Matches(msg, h.keys.Home):
-			return h.parent, nil
-		case key.Matches(msg, h.keys.Reset):
-			h.setted(h.disks)
-		case key.Matches(msg, h.keys.Next):
-			if h.disks+1 <= maxDisks {
-				h.setted(h.disks + 1)
-			}
-		case key.Matches(msg, h.keys.Previous):
-			if h.disks-1 > 0 {
-				h.setted(h.disks - 1)
-			}
-		case key.Matches(msg, h.keys.Piles):
+		case key.Matches(msg, h.pilesKey):
 			h.pick(msg.String())
 			if h.success() {
-				h.showSuccess = true
+				h.setSuccessView()
 			}
-		case msg.String() == "ctrl+c":
-			return h, tea.Quit
-		default:
 		}
 	}
-	return h, nil
+	return nil
 }
 
-func (h *hanoi) View() string {
+func (h *hanoi) view() string {
 	h.buf.Reset()
-	h.writeHead()
-
-	if h.showSuccess {
-		h.buf.WriteString(h.successView())
-		return h.buf.String()
-	}
-
-	if h.err != nil {
-		h.buf.WriteString(dialog.Error(h.err.Error()).WhiteSpaceChars(Name).String())
-		return h.buf.String()
-	}
-
 	h.writePoles()
 	h.writeGround()
 	h.writeLabels()
+	// TODO
 	h.writeState()
 	h.writeHelpInfo()
-	h.writeKeysHelp()
 	return h.buf.String()
 }
 
-func (h *hanoi) successView() string {
+func (h *hanoi) setSuccessView() {
 	minSteps := 1<<h.disks - 1
 	totalStars := 5
 	if h.steps == minSteps {
-		return dialog.Success("Fantastic! you earned all the stars!").
-			WhiteSpaceChars(Name).
-			Height(10).
-			Stars(totalStars, totalStars).
-			String()
+		h.SetSuccess("Fantastic! you earned all the stars!")
+		h.SetStars(totalStars, totalStars)
+		// TODO	Height(10).
+		return
 	}
 	s := fmt.Sprintf("Done! Taken %d steps, can you complete it in %d step(s)? ", h.steps, minSteps)
 	stars := 3
 	if h.steps-minSteps > minSteps/2 {
 		stars = 1
 	}
-	return dialog.Success(s).
-		WhiteSpaceChars(Name).
-		Height(11).
-		Stars(totalStars, stars).
-		String()
+	h.SetSuccess(s)
+	h.SetStars(totalStars, stars)
+	// TODO	Height(11).
 }
 
 func (h *hanoi) setted(n int) {
 	h.disks = n
 	h.steps = 0
 	h.overDisk = nil
-	h.err = nil
 	h.piles = make([]*pile, 3)
 	for i := range h.piles {
 		h.piles[i] = &pile{}
@@ -205,7 +194,7 @@ func (h *hanoi) pick(key string) {
 		return
 	}
 	if !curPile.empty() && h.overDisk.id > curPile.top().id {
-		h.err = errCantMove
+		h.SetError(errCantMove)
 		return
 	}
 	if !curPile.empty() && h.overDisk == curPile.top() {
@@ -221,10 +210,6 @@ func (h *hanoi) pick(key string) {
 			h.overDisk = nil
 		}
 	}
-}
-
-func (h *hanoi) writeHead() {
-	h.buf.WriteString("\n" + h.title + "\n")
 }
 
 func (h *hanoi) writePoles() {
@@ -265,14 +250,6 @@ func (h *hanoi) writeState() {
 
 func (h *hanoi) writeHelpInfo() {
 	h.buf.WriteString(h.helpInfo + "\n\n")
-}
-
-func (h *hanoi) writeKeysHelp() {
-	h.buf.WriteString(h.keysHelp.View(h.keys) + "\n\n")
-}
-
-func (h *hanoi) writeError(err error) {
-	h.buf.WriteString(style.Error.Render(err.Error() + "\n"))
 }
 
 func (h *hanoi) writeLine(s string) {
