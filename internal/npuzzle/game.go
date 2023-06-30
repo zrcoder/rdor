@@ -9,26 +9,28 @@ import (
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/zrcoder/rdor/pkg/dialog"
 	"github.com/zrcoder/rdor/pkg/grid"
 	"github.com/zrcoder/rdor/pkg/model"
 	"github.com/zrcoder/rdor/pkg/style"
 )
 
 type nPuzzle struct {
-	parent     tea.Model
-	n          int
-	title      string
-	help       string
-	grid       *grid.Grid
-	target     *grid.Grid
-	keys       *keyMap
-	keysHelp   help.Model
-	buf        *strings.Builder
-	rows       []string
-	cols       []string
-	blank      grid.Position
-	directions []grid.Direction
-	rd         *rand.Rand
+	parent      tea.Model
+	n           int
+	title       string
+	help        string
+	grid        *grid.Grid
+	target      *grid.Grid
+	keys        *keyMap
+	keysHelp    help.Model
+	buf         *strings.Builder
+	rows        []string
+	cols        []string
+	blank       grid.Position
+	directions  []grid.Direction
+	rd          *rand.Rand
+	showSuccess bool
 }
 
 func New() model.Game { return &nPuzzle{} }
@@ -36,6 +38,7 @@ func New() model.Game { return &nPuzzle{} }
 func (p *nPuzzle) SetParent(parent tea.Model) { p.parent = parent }
 
 const (
+	Name     = "N-Puzzle"
 	defaultN = 3
 )
 
@@ -56,6 +59,7 @@ func (p *nPuzzle) Init() tea.Cmd {
 func (p *nPuzzle) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		p.showSuccess = false
 		switch {
 		case key.Matches(msg, p.keys.Home):
 			return p.parent, nil
@@ -79,15 +83,16 @@ func (p *nPuzzle) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return p, nil
 }
 func (p *nPuzzle) View() string {
+	if p.showSuccess {
+		return dialog.Success("").WhiteSpaceChars(Name).String()
+	}
+
 	curBoard := p.drawBoard()
 	p.buf.Reset()
 	p.buf.WriteString("\n" + p.title + "\n\n")
 	p.buf.WriteString(curBoard)
 	p.buf.WriteString("\n\n")
 	p.buf.WriteString(p.help)
-	if p.success() {
-		p.buf.WriteString("  " + style.Success.Render("Success!"))
-	}
 	p.buf.WriteString("\n\n")
 	p.buf.WriteString(p.keysHelp.View(p.keys))
 	p.buf.WriteString("\n\n")
@@ -140,11 +145,7 @@ func (p *nPuzzle) drawBoard() string {
 		}
 		return false
 	})
-	res := p.buf.String()
-	if p.success() {
-		res = style.Success.Render(res)
-	}
-	return res
+	return p.buf.String()
 }
 
 func (p *nPuzzle) shuffle() {
@@ -162,6 +163,7 @@ func (p *nPuzzle) move(d grid.Direction) {
 	p.grid.Set(p.blank, char)
 	p.grid.Set(pos, 0)
 	p.blank = pos
+	p.showSuccess = p.success()
 }
 
 func (p *nPuzzle) success() bool {

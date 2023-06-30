@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/zrcoder/rdor/internal/maze/levels"
+	"github.com/zrcoder/rdor/pkg/dialog"
 	"github.com/zrcoder/rdor/pkg/grid"
 	"github.com/zrcoder/rdor/pkg/model"
 	"github.com/zrcoder/rdor/pkg/style"
@@ -16,19 +17,20 @@ import (
 )
 
 type maze struct {
-	parent    tea.Model
-	title     string
-	helpInfo  string
-	charMap   map[rune]rune
-	keys      *keyMap
-	keysHelp  help.Model
-	myPos     grid.Position
-	goals     map[grid.Position]bool
-	grid      *grid.Grid
-	helpGrid  *grid.Grid
-	rand      *rand.Rand
-	levelName string
-	buf       *strings.Builder
+	parent      tea.Model
+	title       string
+	helpInfo    string
+	charMap     map[rune]rune
+	keys        *keyMap
+	keysHelp    help.Model
+	myPos       grid.Position
+	goals       map[grid.Position]bool
+	grid        *grid.Grid
+	helpGrid    *grid.Grid
+	rand        *rand.Rand
+	levelName   string
+	buf         *strings.Builder
+	showSuccess bool
 }
 
 func New() model.Game                      { return &maze{} }
@@ -42,6 +44,7 @@ var (
 )
 
 const (
+	Name           = "Maze"
 	verticalWall   = '┃'
 	horizontalWall = '━'
 	corner         = '•'
@@ -73,6 +76,7 @@ func (m *maze) Init() tea.Cmd {
 func (m *maze) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		m.showSuccess = false
 		switch {
 		case key.Matches(msg, m.keys.Home):
 			return m.parent, nil
@@ -96,6 +100,10 @@ func (m *maze) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *maze) View() string {
+	if m.showSuccess {
+		return dialog.Success("").WhiteSpaceChars(Name).String()
+	}
+
 	m.buf.Reset()
 	m.buf.WriteString("\n" + m.title + "\n\n")
 
@@ -108,9 +116,6 @@ func (m *maze) View() string {
 	})
 
 	m.buf.WriteString(style.Help.Render("level: " + m.levelName))
-	if m.success() {
-		m.buf.WriteString(style.Success.Render("  Success!"))
-	}
 	m.buf.WriteString("\n\n")
 	m.buf.WriteString(style.Help.Render(m.helpInfo))
 	m.buf.WriteString("\n\n")
@@ -165,6 +170,7 @@ func (m *maze) move(d grid.Direction) {
 	}
 	pos = grid.TransForm(pos, d)
 	m.moveMe(pos)
+	m.showSuccess = m.success()
 }
 
 func (m *maze) moveMe(pos grid.Position) {

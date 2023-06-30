@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/zrcoder/rdor/pkg/dialog"
 	"github.com/zrcoder/rdor/pkg/grid"
 	"github.com/zrcoder/rdor/pkg/model"
 	"github.com/zrcoder/rdor/pkg/style"
@@ -30,17 +31,19 @@ type sokoban struct {
 	keysHelp help.Model
 	input    textinput.Model
 
-	helpGrid *grid.Grid
-	grid     *grid.Grid
-	err      error
-	myPos    grid.Position
-	buf      *strings.Builder
+	helpGrid    *grid.Grid
+	grid        *grid.Grid
+	err         error
+	myPos       grid.Position
+	buf         *strings.Builder
+	showSuccess bool
 }
 
 func New() model.Game                         { return &sokoban{} }
 func (s *sokoban) SetParent(parent tea.Model) { s.parent = parent }
 
 const (
+	Name             = "Sokoban"
 	maxLevel         = 51
 	inputPlaceholder = "1-51"
 
@@ -84,6 +87,7 @@ func (s *sokoban) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		s.err = nil
+		s.showSuccess = false
 		switch {
 		case key.Matches(msg, s.keys.Home):
 			return s.parent, nil
@@ -119,6 +123,13 @@ func (s *sokoban) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (s *sokoban) View() string {
+	if s.err != nil {
+		return dialog.Error(s.err.Error()).WhiteSpaceChars(Name).String()
+	}
+	if s.showSuccess {
+		return dialog.Success("").WhiteSpaceChars(Name).String()
+	}
+
 	s.buf.Reset()
 	s.buf.WriteString("\n" + s.title + "\n\n")
 	s.grid.Range(func(pos grid.Position, char rune, isLineEnd bool) (end bool) {
@@ -129,9 +140,6 @@ func (s *sokoban) View() string {
 		return
 	})
 	s.buf.WriteString(style.Help.Render(fmt.Sprintf("- %d/%d - ", s.level+1, maxLevel)))
-	if s.success() {
-		s.buf.WriteString(style.Success.Render("Success!"))
-	}
 	s.buf.WriteByte('\n')
 
 	if s.input.Focused() {
@@ -139,9 +147,6 @@ func (s *sokoban) View() string {
 		s.buf.WriteString(s.input.View())
 	} else {
 		s.buf.WriteString("\n" + s.helpInfo + "\n")
-		if s.err != nil {
-			s.buf.WriteString("\n" + style.Error.Render(s.err.Error()) + "\n")
-		}
 		s.buf.WriteString("\n" + s.keysHelp.View(s.keys))
 	}
 	s.buf.WriteByte('\n')
@@ -197,6 +202,7 @@ func (s *sokoban) move(d grid.Direction) {
 			s.moveMe(pos)
 		}
 	}
+	s.showSuccess = s.success()
 }
 
 func (s *sokoban) moveMe(p grid.Position) {

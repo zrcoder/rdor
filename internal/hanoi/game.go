@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"strings"
 
+	"github.com/zrcoder/rdor/pkg/dialog"
 	"github.com/zrcoder/rdor/pkg/model"
 	"github.com/zrcoder/rdor/pkg/style"
 	"github.com/zrcoder/rdor/pkg/style/color"
@@ -17,17 +18,18 @@ import (
 )
 
 type hanoi struct {
-	parent   tea.Model
-	title    string
-	helpInfo string
-	disks    int
-	piles    []*pile
-	overDisk *disk
-	keys     *keyMap
-	keysHelp help.Model
-	buf      *strings.Builder
-	steps    int
-	err      error
+	parent      tea.Model
+	title       string
+	helpInfo    string
+	disks       int
+	piles       []*pile
+	overDisk    *disk
+	keys        *keyMap
+	keysHelp    help.Model
+	buf         *strings.Builder
+	steps       int
+	err         error
+	showSuccess bool
 }
 
 func New() model.Game                       { return &hanoi{} }
@@ -44,6 +46,7 @@ type pile struct {
 }
 
 const (
+	Name         = "Hanoi"
 	minDisks     = 1
 	maxDisks     = 7
 	defaultDisks = 3
@@ -52,14 +55,12 @@ const (
 	horizontalSepBlanks = 2
 	poleWidth           = 1
 
-	starCh        = "★"
-	starOutlineCh = "☆"
-	poleCh        = "|"
-	diskCh        = " "
-	groundCh      = "‾"
-	pole1Label    = "1"
-	pole2Label    = "2"
-	pole3Label    = "3"
+	poleCh     = "|"
+	diskCh     = " "
+	groundCh   = "‾"
+	pole1Label = "1"
+	pole2Label = "2"
+	pole3Label = "3"
 )
 
 var (
@@ -76,8 +77,6 @@ var (
 		lipgloss.NewStyle().Background(color.Indigo),
 		lipgloss.NewStyle().Background(color.Violet),
 	}
-
-	starStyle = lipgloss.NewStyle().Foreground(color.Orange)
 )
 
 func (h *hanoi) Init() tea.Cmd {
@@ -94,6 +93,7 @@ func (h *hanoi) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		h.err = nil
+		h.showSuccess = false
 		switch {
 		case key.Matches(msg, h.keys.Home):
 			return h.parent, nil
@@ -109,6 +109,9 @@ func (h *hanoi) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case key.Matches(msg, h.keys.Piles):
 			h.pick(msg.String())
+			if h.success() {
+				h.showSuccess = true
+			}
 		case msg.String() == "ctrl+c":
 			return h, tea.Quit
 		default:
@@ -118,6 +121,12 @@ func (h *hanoi) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (h *hanoi) View() string {
+	if h.showSuccess {
+		return h.successView()
+	} else if h.err != nil {
+		return dialog.Error(h.err.Error()).WhiteSpaceChars(Name).String()
+	}
+
 	h.buf.Reset()
 	h.writeHead()
 	h.writePoles()
@@ -127,6 +136,28 @@ func (h *hanoi) View() string {
 	h.writeHelpInfo()
 	h.writeKeysHelp()
 	return h.buf.String()
+}
+
+func (h *hanoi) successView() string {
+	minSteps := 1<<h.disks - 1
+	totalStars := 5
+	if h.steps == minSteps {
+		return dialog.Success("Fantastic! you earned all the stars!").
+			WhiteSpaceChars(Name).
+			Height(10).
+			Stars(totalStars, totalStars).
+			String()
+	}
+	s := fmt.Sprintf("Done! Taken %d steps, can you complete it in %d step(s)? ", h.steps, minSteps)
+	stars := 3
+	if h.steps-minSteps > minSteps/2 {
+		stars = 1
+	}
+	return dialog.Success(s).
+		WhiteSpaceChars(Name).
+		Height(11).
+		Stars(totalStars, stars).
+		String()
 }
 
 func (h *hanoi) setted(n int) {
@@ -150,9 +181,6 @@ func (h *hanoi) setted(n int) {
 }
 
 func (h *hanoi) pick(key string) {
-	if h.success() {
-		return
-	}
 	idx := map[string]int{
 		"1": 0,
 		"j": 0,
@@ -227,29 +255,7 @@ func (h *hanoi) writeLabels() {
 }
 
 func (h *hanoi) writeState() {
-	if h.success() {
-		minSteps := 1<<h.disks - 1
-		totalStart := 5
-		if h.steps == minSteps {
-			h.buf.WriteString(style.Success.Render("Fantastic! you earned all the stars! "))
-			h.buf.WriteString(starStyle.Render(strings.Repeat(starCh, totalStart)))
-		} else {
-			s := fmt.Sprintf("Done! Taken %d steps, can you complete it in %d step(s)? ", h.steps, minSteps)
-			h.buf.WriteString(style.Success.Render(s))
-			stars := 3
-			if h.steps-minSteps > minSteps/2 {
-				stars = 1
-			}
-			s = strings.Repeat(starCh, stars) + strings.Repeat(starOutlineCh, totalStart-stars)
-			h.buf.WriteString(starStyle.Render(s))
-		}
-		h.writeBlankLine()
-	} else if h.err != nil {
-		h.writeError(h.err)
-	} else {
-		h.writeLine(fmt.Sprintf("steps: %d", h.steps))
-	}
-	h.writeBlankLine()
+	h.writeLine(fmt.Sprintf("steps: %d\n", h.steps))
 }
 
 func (h *hanoi) writeHelpInfo() {

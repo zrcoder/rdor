@@ -22,11 +22,11 @@ import (
 //go:generate go run ./internal/maze/levels/tool
 func main() {
 	items := []list.Item{
-		item{name: "Hanoi", game: hanoi.New()},
-		item{name: "Sokoban", game: sokoban.New()},
-		item{name: "Maze", game: maze.New()},
-		item{name: "N-Puzzle", game: npuzzle.New()},
-		item{name: "Last", game: last.New()},
+		item{name: hanoi.Name, game: hanoi.New()},
+		item{name: sokoban.Name, game: sokoban.New()},
+		item{name: maze.Name, game: maze.New()},
+		item{name: npuzzle.Name, game: npuzzle.New()},
+		item{name: last.Name, game: last.New()},
 	}
 	const listHeight = 14
 	const defaultWidth = 20

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/zrcoder/rdor/pkg/dialog"
 	"github.com/zrcoder/rdor/pkg/grid"
 	"github.com/zrcoder/rdor/pkg/model"
 	"github.com/zrcoder/rdor/pkg/style"
@@ -40,6 +41,8 @@ type last struct {
 	setting     bool
 	err         error
 	showHelp    bool
+	showSuccess bool
+	showFailure bool
 }
 
 func New() model.Game                      { return &last{} }
@@ -48,6 +51,7 @@ func (l *last) SetParent(parent tea.Model) { l.parent = parent }
 type tickMsg time.Time
 
 const (
+	Name         = "Last"
 	width        = 10
 	height       = 10
 	defaultTotal = 30
@@ -88,6 +92,8 @@ func (l *last) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return l, tea.Batch(l.lifeTransform(), l.eat())
 	case tea.KeyMsg:
 		l.err = nil
+		l.showSuccess = false
+		l.showFailure = false
 		switch {
 		case key.Matches(msg, l.keys.Home):
 			return l.parent, nil
@@ -136,11 +142,18 @@ func (l *last) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (l *last) View() string {
+	if l.err != nil {
+		return dialog.Error(l.err.Error()).WhiteSpaceChars(Name).String()
+	}
+
+	if l.showSuccess {
+		return dialog.Success("You are the last :)").WhiteSpaceChars(Name).String()
+	} else if l.showFailure {
+		return dialog.Error("Your river is the last :(").WhiteSpaceChars(Name).String()
+	}
+
 	l.buf.Reset()
 	l.buf.WriteString("\n" + l.title + "\n")
-	if l.err != nil {
-		l.buf.WriteString(style.Error.Render(l.err.Error()))
-	}
 	l.buf.WriteString("\n")
 
 	l.grid.Range(func(pos grid.Position, char rune, isLineEnd bool) (end bool) {
@@ -164,13 +177,7 @@ func (l *last) View() string {
 			l.buf.WriteString(l.charDic[rival])
 		}
 	}
-	if l.success() {
-		l.buf.WriteString(style.Success.Render("\nYou are the last :)"))
-	} else if l.fail() {
-		l.buf.WriteString(style.Error.Render("\nYour rival is the last :("))
-	} else { // not end
-		l.buf.WriteString("\n")
-	}
+	l.buf.WriteString("\n")
 	if l.showHelp {
 		l.buf.WriteString("\n")
 		l.buf.WriteString(l.currentLevel().View() + "\n")
@@ -335,6 +342,11 @@ func (l *last) eat() tea.Cmd {
 	if l.eatingPath.empty() {
 		l.eatingLeft--
 		l.commonCells--
+	}
+	if l.success() {
+		l.showSuccess = true
+	} else if l.fail() {
+		l.showFailure = true
 	}
 	if l.eatingLeft == 0 {
 		return l.changeTurn()
