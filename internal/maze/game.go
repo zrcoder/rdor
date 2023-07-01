@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zrcoder/rdor/internal/internal"
+	"github.com/zrcoder/rdor/pkg/game"
 	"github.com/zrcoder/rdor/internal/maze/levels"
 	"github.com/zrcoder/rdor/pkg/grid"
 	"github.com/zrcoder/rdor/pkg/keys"
@@ -14,11 +14,11 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type maze struct {
-	*internal.Game
-	helpInfo  string
+	*game.Game
 	charMap   map[rune]rune
 	upKey     key.Binding
 	downKey   key.Binding
@@ -35,12 +35,13 @@ type maze struct {
 }
 
 func New() model.Game {
-	base := internal.New(Name)
+	base := game.New(Name)
 	res := &maze{Game: base}
 	base.InitFunc = res.initialize
 	base.UpdateFunc = res.update
-	base.KeyFuncReset = res.reset
+	base.KeyActionReset = res.reset
 	base.ViewFunc = res.view
+	base.HelpFunc = res.helpInfo
 	return res
 }
 func (m *maze) SetParent(parent tea.Model) { m.Parent = parent }
@@ -63,7 +64,6 @@ const (
 )
 
 func (m *maze) initialize() tea.Cmd {
-	m.helpInfo = style.Help.Render("Our goal is to take all the flowers in the maze.")
 	m.charMap = map[rune]rune{
 		'|':   verticalWall,
 		'-':   horizontalWall,
@@ -89,7 +89,7 @@ func (m *maze) initKeys() {
 		key.WithHelp("p", "pick one random level"),
 	)
 
-	m.SetExtraKeys([]key.Binding{m.upKey, m.leftKey, m.downKey, m.rightKey, m.pickKey})
+	m.Keys = []key.Binding{m.upKey, m.leftKey, m.downKey, m.rightKey, m.pickKey}
 }
 
 func (m *maze) update(msg tea.Msg) tea.Cmd {
@@ -122,11 +122,15 @@ func (m *maze) view() string {
 		return
 	})
 
-	m.buf.WriteString(style.Help.Render("level: " + m.levelName))
-	m.buf.WriteByte('\n')
-	m.buf.WriteString(style.Help.Render(m.helpInfo))
-	m.buf.WriteByte('\n')
-	return m.buf.String()
+	return lipgloss.JoinVertical(lipgloss.Center,
+		strings.TrimRight(m.buf.String(), "\n"),
+		style.Help.Render("level: "+m.levelName),
+	)
+
+}
+
+func (m *maze) helpInfo() string {
+	return "Our goal is to take all the flowers in the maze."
 }
 
 func (m *maze) pickOne() {

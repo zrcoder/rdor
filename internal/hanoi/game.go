@@ -6,9 +6,8 @@ import (
 	"math/rand"
 	"strings"
 
-	"github.com/zrcoder/rdor/internal/internal"
+	"github.com/zrcoder/rdor/pkg/game"
 	"github.com/zrcoder/rdor/pkg/model"
-	"github.com/zrcoder/rdor/pkg/style"
 	"github.com/zrcoder/rdor/pkg/style/color"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -17,8 +16,7 @@ import (
 )
 
 type hanoi struct {
-	*internal.Game
-	helpInfo string
+	*game.Game
 	disks    int
 	piles    []*pile
 	overDisk *disk
@@ -28,19 +26,20 @@ type hanoi struct {
 }
 
 func New() model.Game {
-	g := internal.New(Name)
-	res := &hanoi{Game: g}
-	g.InitFunc = res.initialize
-	g.UpdateFunc = res.update
-	g.ViewFunc = res.view
+	base := game.New(Name)
+	res := &hanoi{Game: base}
+	base.InitFunc = res.initialize
+	base.UpdateFunc = res.update
+	base.ViewFunc = res.view
+	base.HelpFunc = res.helpInfo
 	res.pilesKey = key.NewBinding(
 		key.WithKeys("1", "2", "3", "j", "k", "l"),
 		key.WithHelp("1-3/j,k,l", "pick a pile"),
 	)
-	g.SetExtraKeys([]key.Binding{res.pilesKey})
-	g.KeyFuncReset = res.reset
-	g.KeyFuncPrevious = res.previousLevel
-	g.KeyFuncNext = res.nextLevel
+	base.Keys = []key.Binding{res.pilesKey}
+	base.KeyActionReset = res.reset
+	base.KeyActionPrevious = res.previousLevel
+	base.KeyActionNext = res.nextLevel
 	return res
 }
 func (h *hanoi) SetParent(parent tea.Model) { h.Parent = parent }
@@ -105,7 +104,6 @@ var (
 )
 
 func (h *hanoi) initialize() tea.Cmd {
-	h.helpInfo = style.Help.Render("Our goal is to move all disks from pile `1` to pile `3`.")
 	h.buf = &strings.Builder{}
 	h.setted(defaultDisks)
 	return nil
@@ -130,10 +128,12 @@ func (h *hanoi) view() string {
 	h.writePoles()
 	h.writeGround()
 	h.writeLabels()
-	// TODO
 	h.writeState()
-	h.writeHelpInfo()
 	return h.buf.String()
+}
+
+func (h *hanoi) helpInfo() string {
+	return "Our goal is to move all disks from pile `1` to pile `3`."
 }
 
 func (h *hanoi) setSuccessView() {
@@ -246,10 +246,6 @@ func (h *hanoi) writeLabels() {
 
 func (h *hanoi) writeState() {
 	h.writeLine(fmt.Sprintf("steps: %d\n", h.steps))
-}
-
-func (h *hanoi) writeHelpInfo() {
-	h.buf.WriteString(h.helpInfo + "\n\n")
 }
 
 func (h *hanoi) writeLine(s string) {

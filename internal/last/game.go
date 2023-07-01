@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zrcoder/rdor/internal/internal"
+	"github.com/zrcoder/rdor/pkg/game"
 	"github.com/zrcoder/rdor/pkg/grid"
 	"github.com/zrcoder/rdor/pkg/model"
 	"github.com/zrcoder/rdor/pkg/style"
@@ -20,7 +20,7 @@ import (
 )
 
 type last struct {
-	*internal.Game
+	*game.Game
 
 	numbersKey key.Binding
 
@@ -41,14 +41,14 @@ type last struct {
 }
 
 func New() model.Game {
-	base := internal.New(Name)
+	base := game.New(Name)
 	res := &last{Game: base}
 	base.InitFunc = res.initialize
 	base.UpdateFunc = res.update
 	base.ViewFunc = res.view
-	base.KeyFuncReset = res.setLevel
-	base.KeyFuncNext = res.nextLevel
-	base.KeyFuncPrevious = res.previousLevel
+	base.KeyActionReset = res.setLevel
+	base.KeyActionNext = res.nextLevel
+	base.KeyActionPrevious = res.previousLevel
 	return res
 }
 func (l *last) SetParent(parent tea.Model) { l.Parent = parent }
@@ -151,7 +151,6 @@ func (l *last) view() string {
 			l.buf.WriteString(l.charDic[rival])
 		}
 	}
-	l.buf.WriteString("\n")
 	return l.buf.String()
 }
 
@@ -165,8 +164,8 @@ func (l *last) previousLevel() {
 }
 func (l *last) setLevel() {
 	l.setting = true // wait for the user to decide whether to get started first
-	l.Keys.Next.SetEnabled(false)
-	l.Keys.Previous.SetEnabled(false)
+	l.CommonKeys.Next.SetEnabled(false)
+	l.CommonKeys.Previous.SetEnabled(false)
 	l.numbersKey.SetEnabled(false)
 	l.eatingPath = &pathStack{}
 	curLvl := l.currentLevel()
@@ -179,7 +178,7 @@ func (l *last) setLevel() {
 		key.WithKeys(keys...),
 		key.WithHelp(fmt.Sprintf("1-%d", curLvl.eatingMax), "cells to eatk"),
 	)
-	l.SetExtraKeys([]key.Binding{l.numbersKey})
+	l.Keys = []key.Binding{l.numbersKey}
 	l.rd.Shuffle(len(playSyles), func(i, j int) {
 		playSyles[i], playSyles[j] = playSyles[j], playSyles[i]
 	})
@@ -196,8 +195,8 @@ func (l *last) setLevel() {
 func (l *last) setted() {
 	l.setting = false
 	l.numbersKey.SetEnabled(true)
-	l.Keys.Next.SetEnabled(true)
-	l.Keys.Previous.SetEnabled(true)
+	l.CommonKeys.Next.SetEnabled(true)
+	l.CommonKeys.Previous.SetEnabled(true)
 	ks := []string{"1", "2", "3", "4"}
 	l.numbersKey.SetKeys(ks[:l.currentLevel().eatingMax]...)
 	l.numbersKey.SetHelp(fmt.Sprintf("1-%d", l.currentLevel().eatingMax), "cells to eat")

@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/zrcoder/rdor/internal/internal"
+	"github.com/zrcoder/rdor/pkg/game"
 	"github.com/zrcoder/rdor/pkg/grid"
 	"github.com/zrcoder/rdor/pkg/keys"
 	"github.com/zrcoder/rdor/pkg/model"
@@ -21,9 +21,8 @@ import (
 )
 
 type sokoban struct {
-	*internal.Game
-	helpInfo string
-	blocks   map[rune]string
+	*game.Game
+	blocks map[rune]string
 
 	level    int
 	upKey    key.Binding
@@ -40,12 +39,13 @@ type sokoban struct {
 }
 
 func New() model.Game {
-	base := internal.New(Name)
+	base := game.New(Name)
 	res := &sokoban{Game: base}
 	base.InitFunc = res.initialize
 	base.UpdateFunc = res.update
 	base.ViewFunc = res.view
-	base.KeyFuncReset = res.reset
+	base.HelpFunc = res.helpInfo
+	base.KeyActionReset = res.reset
 	return res
 }
 func (s *sokoban) SetParent(parent tea.Model) { s.Parent = parent }
@@ -68,7 +68,6 @@ const (
 var levelsFS embed.FS
 
 func (s *sokoban) initialize() tea.Cmd {
-	s.helpInfo = style.Help.Render("Our goal is to push all the boxes into the slots without been stuck somewhere.")
 	s.blocks = map[rune]string{
 		wall:      lipgloss.NewStyle().Background(color.Orange).Render(" = "),
 		me:        " ⦿ ", // ♾ ⚉ ⚗︎ ⚘ ☻
@@ -87,7 +86,7 @@ func (s *sokoban) initialize() tea.Cmd {
 		key.WithKeys("s"),
 		key.WithHelp("s", "set"),
 	)
-	s.SetExtraKeys([]key.Binding{s.upKey, s.leftKey, s.downKey, s.rightKey, s.setKey})
+	s.Keys = []key.Binding{s.upKey, s.leftKey, s.downKey, s.rightKey, s.setKey}
 
 	s.input = textinput.New()
 	s.buf = &strings.Builder{}
@@ -125,7 +124,6 @@ func (s *sokoban) update(msg tea.Msg) tea.Cmd {
 
 func (s *sokoban) view() string {
 	s.buf.Reset()
-
 	s.grid.Range(func(pos grid.Position, char rune, isLineEnd bool) (end bool) {
 		s.buf.WriteString(s.blocks[char])
 		if isLineEnd {
@@ -133,17 +131,23 @@ func (s *sokoban) view() string {
 		}
 		return
 	})
-	s.buf.WriteString(style.Help.Render(fmt.Sprintf("- %d/%d - ", s.level+1, maxLevel)))
-	s.buf.WriteByte('\n')
-
+	state := style.Help.Render(fmt.Sprintf("- %d/%d - \n", s.level+1, maxLevel))
+	res := lipgloss.JoinVertical(lipgloss.Center,
+		strings.TrimRight(s.buf.String(), "\n"),
+		state,
+	)
 	if s.input.Focused() {
-		s.buf.WriteString("\npick a level\n")
-		s.buf.WriteString(s.input.View())
-	} else {
-		s.buf.WriteString("\n" + s.helpInfo + "\n")
+		return lipgloss.JoinVertical(lipgloss.Left,
+			res,
+			"pick a level",
+			s.input.View(),
+		)
 	}
-	s.buf.WriteByte('\n')
-	return s.buf.String()
+	return res
+}
+
+func (s *sokoban) helpInfo() string {
+	return "Our goal is to push all the boxes into the slots without been stuck somewhere."
 }
 
 func (s *sokoban) setted(level string) {

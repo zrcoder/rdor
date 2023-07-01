@@ -8,7 +8,8 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/zrcoder/rdor/internal/internal"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/zrcoder/rdor/pkg/game"
 	"github.com/zrcoder/rdor/pkg/grid"
 	"github.com/zrcoder/rdor/pkg/keys"
 	"github.com/zrcoder/rdor/pkg/model"
@@ -16,7 +17,7 @@ import (
 )
 
 type nPuzzle struct {
-	*internal.Game
+	*game.Game
 	n          int
 	state      string
 	grid       *grid.Grid
@@ -35,12 +36,12 @@ type nPuzzle struct {
 }
 
 func New() model.Game {
-	base := internal.New(Name)
+	base := game.New(Name)
 	res := &nPuzzle{Game: base}
 	base.InitFunc = res.initialize
 	base.UpdateFunc = res.update
 	base.ViewFunc = res.view
-	base.KeyFuncNext = res.nextLevel
+	base.KeyActionNext = res.nextLevel
 	return res
 }
 
@@ -66,7 +67,7 @@ func (p *nPuzzle) initialize() tea.Cmd {
 	p.leftKey = keys.Left
 	p.downKey = keys.Down
 	p.rightKey = keys.Right
-	p.SetExtraKeys([]key.Binding{p.upKey, p.leftKey, p.downKey, p.rightKey, p.shuffleKey})
+	p.Keys = []key.Binding{p.upKey, p.leftKey, p.downKey, p.rightKey, p.shuffleKey}
 	p.set()
 	return nil
 }
@@ -88,14 +89,12 @@ func (p *nPuzzle) update(msg tea.Msg) tea.Cmd {
 	}
 	return nil
 }
+
 func (p *nPuzzle) view() string {
-	p.buf.Reset()
-	p.buf.WriteRune('\n')
-	p.drawBoard()
-	p.buf.WriteString("\n")
-	p.buf.WriteString(p.state)
-	p.buf.WriteString("\n")
-	return p.buf.String()
+	return lipgloss.JoinVertical(lipgloss.Center,
+		p.boardView(),
+		p.state,
+	)
 }
 
 func (p *nPuzzle) nextLevel() {
@@ -120,7 +119,8 @@ func (p *nPuzzle) set() {
 	p.shuffle()
 }
 
-func (p *nPuzzle) drawBoard() {
+func (p *nPuzzle) boardView() string {
+	p.buf.Reset()
 	p.buf.WriteString("   ")
 	for _, v := range p.cols[:p.n] {
 		p.buf.WriteString(" " + v + "   ")
@@ -148,6 +148,7 @@ func (p *nPuzzle) drawBoard() {
 		}
 		return false
 	})
+	return p.buf.String()
 }
 
 func (p *nPuzzle) shuffle() {
