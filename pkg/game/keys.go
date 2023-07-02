@@ -11,7 +11,7 @@ type KeyMap struct {
 	Help     key.Binding
 }
 
-func (g *Game) ShortHelp() []key.Binding {
+func (g *Base) ShortHelp() []key.Binding {
 	res := []key.Binding{}
 	for _, k := range g.Keys {
 		res = append(res, k)
@@ -20,7 +20,7 @@ func (g *Game) ShortHelp() []key.Binding {
 	return res
 }
 
-func (g *Game) FullHelp() [][]key.Binding {
+func (g *Base) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		g.Keys,
 		{
@@ -36,29 +36,31 @@ func (g *Game) FullHelp() [][]key.Binding {
 	}
 }
 
-var Keys = KeyMap{
-	Next: key.NewBinding(
-		key.WithKeys("n"),
-		key.WithHelp("n", "next"),
-	),
-	Previous: key.NewBinding(
-		key.WithKeys("p"),
-		key.WithHelp("p", "previous"),
-	),
-	Reset: key.NewBinding(
-		key.WithKeys("r"),
-		key.WithHelp("r", "reset"),
-	),
-	Home: key.NewBinding(
-		key.WithKeys("h"),
-		key.WithHelp("h", "home"),
-	),
-	Quit: key.NewBinding(
-		key.WithKeys("q"),
-		key.WithHelp("q", "quit"),
-	),
-	Help: key.NewBinding(
-		key.WithKeys("?"),
-		key.WithHelp("?", "toogle help"),
-	),
+func getKeys() KeyMap {
+	return KeyMap{
+		Next: key.NewBinding(
+			key.WithKeys("n"),
+			key.WithHelp("n", "next"),
+		),
+		Previous: key.NewBinding(
+			key.WithKeys("p"),
+			key.WithHelp("p", "previous"),
+		),
+		Reset: key.NewBinding(
+			key.WithKeys("r"),
+			key.WithHelp("r", "reset"),
+		),
+		Home: key.NewBinding(
+			key.WithKeys("h"),
+			key.WithHelp("h", "home"),
+		),
+		Quit: key.NewBinding(
+			key.WithKeys("q"),
+			key.WithHelp("q", "quit"),
+		),
+		Help: key.NewBinding(
+			key.WithKeys("?"),
+			key.WithHelp("?", "toogle help"),
+		),
+	}
 }

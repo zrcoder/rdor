@@ -21,11 +21,8 @@ var (
 				Border(lipgloss.RoundedBorder()).
 				BorderForeground(lipgloss.Color("#874BFD")).
 				Padding(1, 1)
-	DefaultWhiteSpaceForground = lipgloss.AdaptiveColor{
-		Light: "#D9DCCF",
-		Dark:  "#383838",
-	}
-	starStyle = lipgloss.NewStyle().Foreground(color.Orange)
+	DefaultWhiteSpaceForground = color.Faint
+	starStyle                  = lipgloss.NewStyle().Foreground(color.Orange)
 )
 
 func Error(message string) *Dialog {

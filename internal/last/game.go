@@ -10,7 +10,6 @@ import (
 
 	"github.com/zrcoder/rdor/pkg/game"
 	"github.com/zrcoder/rdor/pkg/grid"
-	"github.com/zrcoder/rdor/pkg/model"
 	"github.com/zrcoder/rdor/pkg/style"
 	"github.com/zrcoder/rdor/pkg/style/color"
 
@@ -19,8 +18,35 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+const (
+	Name         = "Last"
+	width        = 10
+	height       = 10
+	defaultTotal = 30
+	defaultLimit = 2
+
+	blank = '.'
+	cell  = 'c'
+	me    = 'm'
+	rival = 'r'
+)
+
+var playSyles = []lipgloss.Style{
+	lipgloss.NewStyle().Foreground(color.Red),
+	lipgloss.NewStyle().Foreground(color.Orange),
+	lipgloss.NewStyle().Foreground(color.Yellow),
+	lipgloss.NewStyle().Foreground(color.Green),
+	lipgloss.NewStyle().Foreground(color.Blue),
+	lipgloss.NewStyle().Foreground(color.Indigo),
+	lipgloss.NewStyle().Foreground(color.Violet),
+}
+
+func New() game.Game {
+	return &last{Base: game.New(Name)}
+}
+
 type last struct {
-	*game.Game
+	*game.Base
 
 	numbersKey key.Binding
 
@@ -40,57 +66,29 @@ type last struct {
 	setting     bool
 }
 
-func New() model.Game {
-	base := game.New(Name)
-	res := &last{Game: base}
-	base.InitFunc = res.initialize
-	base.UpdateFunc = res.update
-	base.ViewFunc = res.view
-	base.KeyActionReset = res.setLevel
-	base.KeyActionNext = res.nextLevel
-	base.KeyActionPrevious = res.previousLevel
-	return res
-}
-func (l *last) SetParent(parent tea.Model) { l.Parent = parent }
-
 type tickMsg time.Time
 
-const (
-	Name         = "Last"
-	width        = 10
-	height       = 10
-	defaultTotal = 30
-	defaultLimit = 2
-)
-
-const (
-	blank = '.'
-	cell  = 'c'
-	me    = 'm'
-	rival = 'r'
-)
-
-var playSyles = []lipgloss.Style{
-	lipgloss.NewStyle().Foreground(color.Red),
-	lipgloss.NewStyle().Foreground(color.Orange),
-	lipgloss.NewStyle().Foreground(color.Yellow),
-	lipgloss.NewStyle().Foreground(color.Green),
-	lipgloss.NewStyle().Foreground(color.Blue),
-	lipgloss.NewStyle().Foreground(color.Indigo),
-	lipgloss.NewStyle().Foreground(color.Violet),
-}
-
-func (l *last) initialize() tea.Cmd {
+func (l *last) Init() tea.Cmd {
+	l.ViewFunc = l.view
+	l.KeyActionReset = l.setLevel
+	l.KeyActionNext = l.nextLevel
+	l.KeyActionPrevious = l.previousLevel
 	l.rd = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 	l.levels = getDefaultLevers()
 	l.buf = &strings.Builder{}
 	l.setLevel()
-	return l.lifeTransform()
+	cmd := l.lifeTransform()
+	return tea.Batch(l.Base.Init(), cmd)
 }
-func (l *last) update(msg tea.Msg) tea.Cmd {
+func (l *last) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	b, cmd := l.Base.Update(msg)
+	if b != l.Base {
+		return b, cmd
+	}
+
 	switch msg := msg.(type) {
 	case tickMsg:
-		return tea.Batch(l.lifeTransform(), l.eat())
+		return l, tea.Batch(l.lifeTransform(), l.eat(), cmd)
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, l.numbersKey):
@@ -98,10 +96,10 @@ func (l *last) update(msg tea.Msg) tea.Cmd {
 			l.playerIndex = 0
 			l.eatingLeft = n
 			l.eating = true
-			return l.eat()
+			return l, tea.Batch(l.eat(), cmd)
 		default:
 			if !l.setting {
-				return nil
+				return l, cmd
 			}
 			switch msg.String() {
 			case "0", "1", "2", "3", "4", "5", "6", "7", "8", "9":
@@ -124,7 +122,7 @@ func (l *last) update(msg tea.Msg) tea.Cmd {
 			}
 		}
 	}
-	return nil
+	return l, cmd
 }
 
 func (l *last) view() string {

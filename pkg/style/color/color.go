@@ -3,6 +3,10 @@ package color
 import "github.com/charmbracelet/lipgloss"
 
 var (
+	Faint = lipgloss.AdaptiveColor{
+		Light: "#D9DCCF",
+		Dark:  "#383838",
+	}
 	White = lipgloss.Color("#ffffff")
 	// rainbow colors
 	Red    = lipgloss.Color("#ff0000")

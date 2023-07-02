@@ -7,67 +7,12 @@ import (
 	"strings"
 
 	"github.com/zrcoder/rdor/pkg/game"
-	"github.com/zrcoder/rdor/pkg/model"
 	"github.com/zrcoder/rdor/pkg/style/color"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
-
-type hanoi struct {
-	*game.Game
-	disks    int
-	piles    []*pile
-	overDisk *disk
-	pilesKey key.Binding
-	buf      *strings.Builder
-	steps    int
-}
-
-func New() model.Game {
-	base := game.New(Name)
-	res := &hanoi{Game: base}
-	base.InitFunc = res.initialize
-	base.UpdateFunc = res.update
-	base.ViewFunc = res.view
-	base.HelpFunc = res.helpInfo
-	res.pilesKey = key.NewBinding(
-		key.WithKeys("1", "2", "3", "j", "k", "l"),
-		key.WithHelp("1-3/j,k,l", "pick a pile"),
-	)
-	base.Keys = []key.Binding{res.pilesKey}
-	base.KeyActionReset = res.reset
-	base.KeyActionPrevious = res.previousLevel
-	base.KeyActionNext = res.nextLevel
-	return res
-}
-func (h *hanoi) SetParent(parent tea.Model) { h.Parent = parent }
-
-func (h *hanoi) reset() {
-	h.setted(h.disks)
-}
-func (h *hanoi) previousLevel() {
-	if h.disks-1 > 0 {
-		h.setted(h.disks - 1)
-	}
-}
-func (h *hanoi) nextLevel() {
-	if h.disks+1 <= maxDisks {
-		h.setted(h.disks + 1)
-	}
-
-}
-
-type disk struct {
-	id   int
-	view string
-}
-
-type pile struct {
-	disks   []*disk
-	overOne bool
-}
 
 const (
 	Name         = "Hanoi"
@@ -78,6 +23,7 @@ const (
 	diskWidthUnit       = 4
 	horizontalSepBlanks = 2
 	poleWidth           = 1
+	pileWidth           = diskWidthUnit*maxDisks + poleWidth
 
 	poleCh     = "|"
 	diskCh     = " "
@@ -88,7 +34,6 @@ const (
 )
 
 var (
-	pileWidth   = diskWidthUnit*maxDisks + poleWidth
 	errDiskNum  = fmt.Errorf("disks number must be an integer between %d to %d", minDisks, maxDisks)
 	errCantMove = errors.New("can not move the disk above a smaller one")
 
@@ -103,13 +48,51 @@ var (
 	}
 )
 
-func (h *hanoi) initialize() tea.Cmd {
-	h.buf = &strings.Builder{}
-	h.setted(defaultDisks)
-	return nil
+func New() game.Game {
+	return &hanoi{Base: game.New(Name)}
 }
 
-func (h *hanoi) update(msg tea.Msg) tea.Cmd {
+type hanoi struct {
+	*game.Base
+	disks    int
+	piles    []*pile
+	overDisk *disk
+	pilesKey key.Binding
+	buf      *strings.Builder
+	steps    int
+}
+
+type disk struct {
+	id   int
+	view string
+}
+
+type pile struct {
+	disks   []*disk
+	overOne bool
+}
+
+func (h *hanoi) Init() tea.Cmd {
+	h.ViewFunc = h.view
+	h.HelpFunc = h.helpInfo
+	h.pilesKey = key.NewBinding(
+		key.WithKeys("1", "2", "3", "j", "k", "l"),
+		key.WithHelp("1-3/j,k,l", "pick a pile"),
+	)
+	h.Keys = []key.Binding{h.pilesKey}
+	h.KeyActionReset = h.reset
+	h.KeyActionPrevious = h.previousLevel
+	h.KeyActionNext = h.nextLevel
+	h.buf = &strings.Builder{}
+	h.setted(defaultDisks)
+	return h.Base.Init()
+}
+
+func (h *hanoi) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	b, cmd := h.Base.Update(msg)
+	if b != h.Base { // is parent
+		return b, cmd
+	}
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
@@ -120,7 +103,7 @@ func (h *hanoi) update(msg tea.Msg) tea.Cmd {
 			}
 		}
 	}
-	return nil
+	return h, cmd // b is base or parent
 }
 
 func (h *hanoi) view() string {
@@ -130,6 +113,22 @@ func (h *hanoi) view() string {
 	h.writeLabels()
 	h.writeState()
 	return h.buf.String()
+}
+
+func (h *hanoi) reset() {
+	h.setted(h.disks)
+}
+
+func (h *hanoi) previousLevel() {
+	if h.disks-1 > 0 {
+		h.setted(h.disks - 1)
+	}
+}
+
+func (h *hanoi) nextLevel() {
+	if h.disks+1 <= maxDisks {
+		h.setted(h.disks + 1)
+	}
 }
 
 func (h *hanoi) helpInfo() string {
@@ -142,7 +141,6 @@ func (h *hanoi) setSuccessView() {
 	if h.steps == minSteps {
 		h.SetSuccess("Fantastic! you earned all the stars!")
 		h.SetStars(totalStars, totalStars)
-		// TODO	Height(10).
 		return
 	}
 	s := fmt.Sprintf("Done! Taken %d steps, can you complete it in %d step(s)? ", h.steps, minSteps)

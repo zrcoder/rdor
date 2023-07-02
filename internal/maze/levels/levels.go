@@ -491,6 +491,6 @@ var Names = []string{
 }
 
 func ReadLevel(s string) (string, error) {
-	data, err := fs.ReadFile("classic/"+s+".txt")
+	data, err := fs.ReadFile("classic/" + s + ".txt")
 	return string(data), err
 }

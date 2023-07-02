@@ -5,11 +5,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zrcoder/rdor/pkg/game"
 	"github.com/zrcoder/rdor/internal/maze/levels"
+	"github.com/zrcoder/rdor/pkg/game"
 	"github.com/zrcoder/rdor/pkg/grid"
 	"github.com/zrcoder/rdor/pkg/keys"
-	"github.com/zrcoder/rdor/pkg/model"
 	"github.com/zrcoder/rdor/pkg/style"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -17,8 +16,29 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+const (
+	Name           = "Maze"
+	verticalWall   = '┃'
+	horizontalWall = '━'
+	corner         = '•'
+	me             = '⦿'
+	goal           = '❀'
+	blank          = ' '
+)
+
+var (
+	up    = grid.Up
+	down  = grid.Down
+	right = grid.Right.Scale(2)
+	left  = grid.Left.Scale(2)
+)
+
+func New() game.Game {
+	return &maze{Base: game.New(Name)}
+}
+
 type maze struct {
-	*game.Game
+	*game.Base
 	charMap   map[rune]rune
 	upKey     key.Binding
 	downKey   key.Binding
@@ -34,36 +54,10 @@ type maze struct {
 	buf       *strings.Builder
 }
 
-func New() model.Game {
-	base := game.New(Name)
-	res := &maze{Game: base}
-	base.InitFunc = res.initialize
-	base.UpdateFunc = res.update
-	base.KeyActionReset = res.reset
-	base.ViewFunc = res.view
-	base.HelpFunc = res.helpInfo
-	return res
-}
-func (m *maze) SetParent(parent tea.Model) { m.Parent = parent }
-
-var (
-	up    = grid.Up
-	down  = grid.Down
-	right = grid.Right.Scale(2)
-	left  = grid.Left.Scale(2)
-)
-
-const (
-	Name           = "Maze"
-	verticalWall   = '┃'
-	horizontalWall = '━'
-	corner         = '•'
-	me             = '⦿'
-	goal           = '❀'
-	blank          = ' '
-)
-
-func (m *maze) initialize() tea.Cmd {
+func (m *maze) Init() tea.Cmd {
+	m.KeyActionReset = m.reset
+	m.ViewFunc = m.view
+	m.HelpFunc = m.helpInfo
 	m.charMap = map[rune]rune{
 		'|':   verticalWall,
 		'-':   horizontalWall,
@@ -72,14 +66,6 @@ func (m *maze) initialize() tea.Cmd {
 		'G':   goal,
 		blank: blank,
 	}
-	m.rand = rand.New(rand.NewSource(int64(time.Now().UnixNano())))
-	m.pickOne()
-	m.initKeys()
-	m.buf = &strings.Builder{}
-	return nil
-}
-
-func (m *maze) initKeys() {
 	m.upKey = keys.Up
 	m.leftKey = keys.Left
 	m.downKey = keys.Down
@@ -88,11 +74,19 @@ func (m *maze) initKeys() {
 		key.WithKeys("p"),
 		key.WithHelp("p", "pick one random level"),
 	)
-
 	m.Keys = []key.Binding{m.upKey, m.leftKey, m.downKey, m.rightKey, m.pickKey}
+	m.rand = rand.New(rand.NewSource(int64(time.Now().UnixNano())))
+	m.pickOne()
+	m.buf = &strings.Builder{}
+	return m.Base.Init()
 }
 
-func (m *maze) update(msg tea.Msg) tea.Cmd {
+func (m *maze) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	b, cmd := m.Base.Update(msg)
+	if b != m.Base {
+		return b, cmd
+	}
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
@@ -108,7 +102,7 @@ func (m *maze) update(msg tea.Msg) tea.Cmd {
 			m.pickOne()
 		}
 	}
-	return nil
+	return m, cmd
 }
 
 func (m *maze) view() string {

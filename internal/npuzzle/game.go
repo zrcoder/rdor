@@ -12,12 +12,20 @@ import (
 	"github.com/zrcoder/rdor/pkg/game"
 	"github.com/zrcoder/rdor/pkg/grid"
 	"github.com/zrcoder/rdor/pkg/keys"
-	"github.com/zrcoder/rdor/pkg/model"
 	"github.com/zrcoder/rdor/pkg/style"
 )
 
+const (
+	Name     = "N-Puzzle"
+	defaultN = 3
+)
+
+func New() game.Game {
+	return &nPuzzle{Base: game.New(Name)}
+}
+
 type nPuzzle struct {
-	*game.Game
+	*game.Base
 	n          int
 	state      string
 	grid       *grid.Grid
@@ -35,24 +43,9 @@ type nPuzzle struct {
 	rd         *rand.Rand
 }
 
-func New() model.Game {
-	base := game.New(Name)
-	res := &nPuzzle{Game: base}
-	base.InitFunc = res.initialize
-	base.UpdateFunc = res.update
-	base.ViewFunc = res.view
-	base.KeyActionNext = res.nextLevel
-	return res
-}
-
-func (p *nPuzzle) SetParent(parent tea.Model) { p.Parent = parent }
-
-const (
-	Name     = "N-Puzzle"
-	defaultN = 3
-)
-
-func (p *nPuzzle) initialize() tea.Cmd {
+func (p *nPuzzle) Init() tea.Cmd {
+	p.ViewFunc = p.view
+	p.KeyActionNext = p.nextLevel
 	p.n = defaultN
 	p.buf = &strings.Builder{}
 	p.rows = []string{"A", "B", "C", "D", "E"}
@@ -69,9 +62,15 @@ func (p *nPuzzle) initialize() tea.Cmd {
 	p.rightKey = keys.Right
 	p.Keys = []key.Binding{p.upKey, p.leftKey, p.downKey, p.rightKey, p.shuffleKey}
 	p.set()
-	return nil
+	return p.Base.Init()
 }
-func (p *nPuzzle) update(msg tea.Msg) tea.Cmd {
+
+func (p *nPuzzle) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	b, cmd := p.Base.Update(msg)
+	if b != p.Base {
+		return b, cmd
+	}
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
@@ -87,7 +86,7 @@ func (p *nPuzzle) update(msg tea.Msg) tea.Cmd {
 			p.move(grid.Left)
 		}
 	}
-	return nil
+	return p, cmd
 }
 
 func (p *nPuzzle) view() string {

@@ -10,7 +10,6 @@ import (
 	"github.com/zrcoder/rdor/pkg/game"
 	"github.com/zrcoder/rdor/pkg/grid"
 	"github.com/zrcoder/rdor/pkg/keys"
-	"github.com/zrcoder/rdor/pkg/model"
 	"github.com/zrcoder/rdor/pkg/style"
 	"github.com/zrcoder/rdor/pkg/style/color"
 
@@ -19,36 +18,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
-
-type sokoban struct {
-	*game.Game
-	blocks map[rune]string
-
-	level    int
-	upKey    key.Binding
-	leftKey  key.Binding
-	downKey  key.Binding
-	rightKey key.Binding
-	setKey   key.Binding
-	input    textinput.Model
-
-	helpGrid *grid.Grid
-	grid     *grid.Grid
-	myPos    grid.Position
-	buf      *strings.Builder
-}
-
-func New() model.Game {
-	base := game.New(Name)
-	res := &sokoban{Game: base}
-	base.InitFunc = res.initialize
-	base.UpdateFunc = res.update
-	base.ViewFunc = res.view
-	base.HelpFunc = res.helpInfo
-	base.KeyActionReset = res.reset
-	return res
-}
-func (s *sokoban) SetParent(parent tea.Model) { s.Parent = parent }
 
 const (
 	Name             = "Sokoban"
@@ -67,7 +36,32 @@ const (
 //go:embed levels
 var levelsFS embed.FS
 
-func (s *sokoban) initialize() tea.Cmd {
+func New() game.Game {
+	return &sokoban{Base: game.New(Name)}
+}
+
+type sokoban struct {
+	*game.Base
+	blocks map[rune]string
+
+	level    int
+	upKey    key.Binding
+	leftKey  key.Binding
+	downKey  key.Binding
+	rightKey key.Binding
+	setKey   key.Binding
+	input    textinput.Model
+
+	helpGrid *grid.Grid
+	grid     *grid.Grid
+	myPos    grid.Position
+	buf      *strings.Builder
+}
+
+func (s *sokoban) Init() tea.Cmd {
+	s.ViewFunc = s.view
+	s.HelpFunc = s.helpInfo
+	s.KeyActionReset = s.reset
 	s.blocks = map[rune]string{
 		wall:      lipgloss.NewStyle().Background(color.Orange).Render(" = "),
 		me:        " ⦿ ", // ♾ ⚉ ⚗︎ ⚘ ☻
@@ -92,12 +86,17 @@ func (s *sokoban) initialize() tea.Cmd {
 	s.buf = &strings.Builder{}
 	s.loadLever()
 	s.input.Placeholder = inputPlaceholder
-	return nil
+	return s.Base.Init()
 }
 
-func (s *sokoban) update(msg tea.Msg) tea.Cmd {
-	var cmd tea.Cmd
-	s.input, cmd = s.input.Update(msg)
+func (s *sokoban) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	b, bcmd := s.Base.Update(msg)
+	if b != s.Base {
+		return b, bcmd
+	}
+
+	var icmd tea.Cmd
+	s.input, icmd = s.input.Update(msg)
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
@@ -110,7 +109,7 @@ func (s *sokoban) update(msg tea.Msg) tea.Cmd {
 		case key.Matches(msg, s.rightKey):
 			s.move(grid.Right)
 		case key.Matches(msg, s.setKey):
-			return s.input.Focus()
+			return s, tea.Batch(bcmd, icmd, s.input.Focus())
 		default:
 			if msg.Type == tea.KeyEnter && s.input.Focused() {
 				s.input.Blur()
@@ -119,7 +118,7 @@ func (s *sokoban) update(msg tea.Msg) tea.Cmd {
 			}
 		}
 	}
-	return cmd
+	return s, tea.Batch(bcmd, icmd)
 }
 
 func (s *sokoban) view() string {

@@ -3,25 +3,29 @@ package game
 import (
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/zrcoder/rdor/pkg/dialog"
 	"github.com/zrcoder/rdor/pkg/style"
 )
 
+type Game interface {
+	Name() string
+	SetParent(tea.Model)
+	tea.Model
+	list.Item
+}
+
 type (
-	InitFunc   func() tea.Cmd
-	UpdateFunc func(tea.Msg) tea.Cmd
-	ViewFunc   func() string
-	KeyAction  func()
+	ViewFunc  func() string
+	KeyAction func()
 )
 
-type Game struct {
-	Title             string
+type Base struct {
+	name              string
 	ViewFunc          ViewFunc
 	HelpFunc          ViewFunc
-	InitFunc          InitFunc
-	UpdateFunc        UpdateFunc
 	KeyActionReset    KeyAction
 	KeyActionNext     KeyAction
 	KeyActionPrevious KeyAction
@@ -42,36 +46,41 @@ type Game struct {
 	keysHelp    help.Model
 }
 
-func New(title string) *Game {
-	game := &Game{Title: title,
-		CommonKeys: Keys,
-		keysHelp:   help.New(),
-	}
-	game.keysHelp.ShowAll = true
-	return game
+func New(name string) *Base {
+	return &Base{name: name}
 }
 
-func (g *Game) SetError(err error) {
+func (b *Base) Name() string {
+	return b.name
+}
+func (b *Base) FilterValue() string {
+	return b.name
+}
+
+func (b *Base) SetParent(parent tea.Model) {
+	b.Parent = parent
+}
+
+func (g *Base) SetError(err error) {
 	g.err = err
 }
-func (g *Game) SetSuccess(msg string) {
+func (g *Base) SetSuccess(msg string) {
 	g.showSuccess = true
 	g.successMsg = msg
 }
-func (g *Game) SetStars(total, erned int) {
+func (g *Base) SetStars(total, erned int) {
 	g.totalStars = total
 	g.ernedStars = erned
 }
-func (g *Game) SetFailure(msg string) {
+func (g *Base) SetFailure(msg string) {
 	g.showFailure = true
 	g.failureMsg = msg
 }
 
-func (g *Game) Init() tea.Cmd {
-	var res tea.Cmd
-	if g.InitFunc != nil {
-		res = g.InitFunc()
-	}
+func (g *Base) Init() tea.Cmd {
+	g.CommonKeys = getKeys()
+	g.keysHelp = help.New()
+	g.keysHelp.ShowAll = true
 	if g.KeyActionReset == nil {
 		g.CommonKeys.Reset.SetEnabled(false)
 	}
@@ -84,10 +93,10 @@ func (g *Game) Init() tea.Cmd {
 	if g.HelpFunc == nil {
 		g.CommonKeys.Help.SetEnabled(false)
 	}
-	return res
+	return nil
 }
 
-func (g *Game) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (g *Base) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		g.err = nil
@@ -112,23 +121,25 @@ func (g *Game) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		g.height = msg.Height
 		g.keysHelp.Width = msg.Width
 	}
-	return g, g.UpdateFunc(msg)
+	return g, nil
 }
 
-func (g *Game) View() string {
-	return lipgloss.JoinVertical(lipgloss.Left,
-		style.Title.Render(g.Title),
-		"\n",
-		g.mainView(),
-		"\n",
-		g.keysHelp.View(g),
+func (g *Base) View() string {
+	return lipgloss.NewStyle().Padding(1, 3).Render(
+		lipgloss.JoinVertical(lipgloss.Left,
+			style.Title.Render(g.name),
+			"\n",
+			g.mainView(),
+			"\n",
+			g.keysHelp.View(g),
+		),
 	)
 }
 
-func (g *Game) mainView() string {
+func (g *Base) mainView() string {
 	if g.err != nil {
 		return dialog.Error(g.err.Error()).
-			WhiteSpaceChars(g.Title).
+			WhiteSpaceChars(g.name).
 			Width(g.width).Height(g.height).
 			String()
 	}
@@ -136,14 +147,14 @@ func (g *Game) mainView() string {
 	if g.showSuccess {
 		return dialog.Success(g.successMsg).
 			Stars(g.totalStars, g.ernedStars).
-			WhiteSpaceChars(g.Title).
+			WhiteSpaceChars(g.name).
 			Width(g.width).Height(g.height).
 			String()
 	}
 
 	if g.showFailure {
 		return dialog.Error(g.failureMsg).
-			WhiteSpaceChars(g.Title).
+			WhiteSpaceChars(g.name).
 			Width(g.width).Height(g.height).
 			String()
 	}
