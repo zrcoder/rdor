@@ -10,24 +10,27 @@ import (
 )
 
 type Key struct {
-	Key      string
-	Display  string
-	isNumber bool
-	Number   int
-	Pressed  bool
-
+	Key        string
+	Display    string
 	keyBinding key.Binding
+	Number     int
+	isNumber   bool
+	Pressed    bool
 }
 
 type PressMsg = *Key
 
-func New(key string) *Key {
+func NewKey(key string) *Key {
 	return &Key{Key: key}
 }
 
 func (k *Key) SetNumber(val int) {
 	k.isNumber = true
 	k.Number = val
+}
+
+func (k *Key) SetDisply(display string) {
+	k.Display = display
 }
 
 func (k *Key) RemoveNumber() {
@@ -54,7 +57,7 @@ func (k *Key) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (k *Key) View() string {
-	style := lipgloss.NewStyle().Padding(1, 4).Border(lipgloss.RoundedBorder())
+	style := lipgloss.NewStyle().Padding(0, 1).Border(lipgloss.RoundedBorder())
 	if k.Pressed {
 		style = style.Faint(true).Foreground(color.Faint)
 	}
@@ -73,6 +76,26 @@ func (k *Key) View() string {
 
 type KeysLine []*Key
 
+func NewKeysLine(keys ...string) KeysLine {
+	res := make([]*Key, len(keys))
+	for i, k := range keys {
+		res[i] = NewKey(k)
+	}
+	return res
+}
+
+func (kl KeysLine) SetNumbers(nums ...int) {
+	for i, num := range nums {
+		kl[i].SetNumber(num)
+	}
+}
+
+func (kl KeysLine) SetDisplays(displays ...string) {
+	for i, display := range displays {
+		kl[i].SetDisply(display)
+	}
+}
+
 func (kl KeysLine) Init() tea.Cmd {
 	return nil
 }
@@ -85,6 +108,7 @@ func (kl KeysLine) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	return kl, tea.Sequence(cmds...)
 }
+
 func (kl KeysLine) View() string {
 	views := make([]string, len(kl))
 	for i, k := range kl {

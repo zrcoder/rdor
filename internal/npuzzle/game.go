@@ -16,52 +16,48 @@ import (
 )
 
 const (
-	Name     = "N-Puzzle"
+	name     = "N-Puzzle"
 	defaultN = 3
 )
 
 func New() game.Game {
-	return &nPuzzle{Base: game.New(Name)}
+	return &nPuzzle{Base: game.New(name)}
 }
 
 type nPuzzle struct {
 	*game.Base
-	n          int
-	state      string
+
+	rd         *rand.Rand
 	grid       *grid.Grid
 	target     *grid.Grid
-	shuffleKey key.Binding
-	upKey      key.Binding
-	leftKey    key.Binding
-	downKey    key.Binding
-	rightKey   key.Binding
 	buf        *strings.Builder
+	state      string
+	downKey    *key.Binding
+	leftKey    *key.Binding
+	upKey      *key.Binding
+	rightKey   *key.Binding
 	rows       []string
 	cols       []string
-	blank      grid.Position
 	directions []grid.Direction
-	rd         *rand.Rand
+	blank      grid.Position
+	n          int
 }
 
 func (p *nPuzzle) Init() tea.Cmd {
-	p.ViewFunc = p.view
-	p.KeyActionNext = p.nextLevel
+	p.RegisterView(p.view)
 	p.n = defaultN
+	p.RegisterLevels(p.n, p.set)
 	p.buf = &strings.Builder{}
 	p.rows = []string{"A", "B", "C", "D", "E"}
 	p.cols = []string{"1", "2", "3", "4", "5"}
 	p.rd = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 	p.directions = []grid.Direction{grid.Up, grid.Left, grid.Down, grid.Right}
-	p.shuffleKey = key.NewBinding(
-		key.WithKeys("s"),
-		key.WithHelp("s", "shuffle"),
-	)
-	p.upKey = keys.Up
-	p.leftKey = keys.Left
-	p.downKey = keys.Down
-	p.rightKey = keys.Right
-	p.Keys = []key.Binding{p.upKey, p.leftKey, p.downKey, p.rightKey, p.shuffleKey}
-	p.set()
+	p.upKey = &keys.Up
+	p.leftKey = &keys.Left
+	p.downKey = &keys.Down
+	p.rightKey = &keys.Right
+	p.AddKeyGroup(game.KeyGroup{p.upKey, p.leftKey, p.downKey, p.rightKey})
+	p.set(0)
 	return p.Base.Init()
 }
 
@@ -74,15 +70,13 @@ func (p *nPuzzle) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, p.shuffleKey):
-			p.shuffle()
-		case key.Matches(msg, p.upKey):
+		case key.Matches(msg, *p.upKey):
 			p.move(grid.Down)
-		case key.Matches(msg, p.downKey):
+		case key.Matches(msg, *p.downKey):
 			p.move(grid.Up)
-		case key.Matches(msg, p.leftKey):
+		case key.Matches(msg, *p.leftKey):
 			p.move(grid.Right)
-		case key.Matches(msg, p.rightKey):
+		case key.Matches(msg, *p.rightKey):
 			p.move(grid.Left)
 		}
 	}
@@ -96,12 +90,8 @@ func (p *nPuzzle) view() string {
 	)
 }
 
-func (p *nPuzzle) nextLevel() {
-	p.n = 3 + (p.n+1)%3 // 3, 4, 5 only
-	p.set()
-}
-
-func (p *nPuzzle) set() {
+func (p *nPuzzle) set(i int) {
+	p.n = i + 3
 	p.state = style.Help.Render(fmt.Sprintf("%d✗%d", p.n, p.n))
 	g := make([][]rune, p.n)
 	for r := range g {

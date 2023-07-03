@@ -9,15 +9,13 @@ import (
 	"github.com/zrcoder/rdor/pkg/game"
 	"github.com/zrcoder/rdor/pkg/grid"
 	"github.com/zrcoder/rdor/pkg/keys"
-	"github.com/zrcoder/rdor/pkg/style"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 const (
-	Name           = "Maze"
+	name           = "Maze"
 	verticalWall   = '┃'
 	horizontalWall = '━'
 	corner         = '•'
@@ -34,30 +32,28 @@ var (
 )
 
 func New() game.Game {
-	return &maze{Base: game.New(Name)}
+	return &maze{Base: game.New(name)}
 }
 
 type maze struct {
 	*game.Base
-	charMap   map[rune]rune
-	upKey     key.Binding
-	downKey   key.Binding
-	leftKey   key.Binding
-	rightKey  key.Binding
-	pickKey   key.Binding
-	myPos     grid.Position
-	goals     map[grid.Position]bool
-	grid      *grid.Grid
-	helpGrid  *grid.Grid
-	rand      *rand.Rand
-	levelName string
-	buf       *strings.Builder
+	charMap  map[rune]rune
+	upKey    *key.Binding
+	downKey  *key.Binding
+	leftKey  *key.Binding
+	rightKey *key.Binding
+	myPos    grid.Position
+	goals    map[grid.Position]bool
+	grid     *grid.Grid
+	helpGrid *grid.Grid
+	rand     *rand.Rand
+	buf      *strings.Builder
 }
 
 func (m *maze) Init() tea.Cmd {
-	m.KeyActionReset = m.reset
-	m.ViewFunc = m.view
-	m.HelpFunc = m.helpInfo
+	m.RegisterView(m.view)
+	m.RegisterHelp(m.helpInfo)
+	m.RegisterLevels(len(levels.Names), m.load)
 	m.charMap = map[rune]rune{
 		'|':   verticalWall,
 		'-':   horizontalWall,
@@ -66,17 +62,13 @@ func (m *maze) Init() tea.Cmd {
 		'G':   goal,
 		blank: blank,
 	}
-	m.upKey = keys.Up
-	m.leftKey = keys.Left
-	m.downKey = keys.Down
-	m.rightKey = keys.Right
-	m.pickKey = key.NewBinding(
-		key.WithKeys("p"),
-		key.WithHelp("p", "pick one random level"),
-	)
-	m.Keys = []key.Binding{m.upKey, m.leftKey, m.downKey, m.rightKey, m.pickKey}
+	m.upKey = &keys.Up
+	m.leftKey = &keys.Left
+	m.downKey = &keys.Down
+	m.rightKey = &keys.Right
+	m.ClearGroups()
+	m.AddKeyGroup(game.KeyGroup{m.upKey, m.leftKey, m.downKey, m.rightKey})
 	m.rand = rand.New(rand.NewSource(int64(time.Now().UnixNano())))
-	m.pickOne()
 	m.buf = &strings.Builder{}
 	return m.Base.Init()
 }
@@ -90,16 +82,14 @@ func (m *maze) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, m.upKey):
+		case key.Matches(msg, *m.upKey):
 			m.move(up)
-		case key.Matches(msg, m.leftKey):
+		case key.Matches(msg, *m.leftKey):
 			m.move(left)
-		case key.Matches(msg, m.downKey):
+		case key.Matches(msg, *m.downKey):
 			m.move(down)
-		case key.Matches(msg, m.rightKey):
+		case key.Matches(msg, *m.rightKey):
 			m.move(right)
-		case key.Matches(msg, m.pickKey):
-			m.pickOne()
 		}
 	}
 	return m, cmd
@@ -116,24 +106,15 @@ func (m *maze) view() string {
 		return
 	})
 
-	return lipgloss.JoinVertical(lipgloss.Center,
-		strings.TrimRight(m.buf.String(), "\n"),
-		style.Help.Render("level: "+m.levelName),
-	)
-
+	return m.buf.String()
 }
 
 func (m *maze) helpInfo() string {
 	return "Our goal is to take all the flowers in the maze."
 }
 
-func (m *maze) pickOne() {
-	m.levelName = levels.Names[rand.Intn(len(levels.Names))]
-	m.load()
-}
-
-func (m *maze) load() {
-	level, err := levels.ReadLevel(m.levelName)
+func (m *maze) load(i int) {
+	level, err := levels.ReadLevel(levels.Names[i])
 	if err != nil {
 		panic(err)
 	}

@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	Name = "24 Points"
+	name = "24 Points"
 
 	plus  = "+"
 	minus = "-"
@@ -20,51 +20,26 @@ const (
 
 type point24 struct {
 	*game.Base
-	levels   [][4]int
-	curLevel int
-	point    int
-	nums     keyblock.KeysLine
-	opers    keyblock.KeysLine
-
-	oper string
-	num  int
-
-	a, s, d, f, h, j, k, l *keyblock.Key
+	levels [][4]int
+	oper   string
+	nums   keyblock.KeysLine
+	opers  keyblock.KeysLine
+	num    int
+	point  int
 }
 
 func New() game.Game {
-	return &point24{Base: game.New(Name)}
+	return &point24{Base: game.New(name)}
 }
 
 func (p *point24) Init() tea.Cmd {
-	p.ViewFunc = p.view
 	p.levels = getLevers()
-	p.KeyActionNext = func() {
-		if p.curLevel < len(p.levels)-1 {
-			p.setLever(p.curLevel + 1)
-		}
-	}
-	p.KeyActionPrevious = func() {
-		if p.curLevel > 0 {
-			p.setLever(p.curLevel - 1)
-		}
-	}
-	p.KeyActionReset = func() { p.setLever(p.curLevel) }
-	p.a = keyblock.New("A")
-	p.s = keyblock.New("S")
-	p.d = keyblock.New("D")
-	p.f = keyblock.New("F")
-	p.h = keyblock.New("H")
-	p.j = keyblock.New("J")
-	p.k = keyblock.New("K")
-	p.l = keyblock.New("L")
-	p.h.Display = plus
-	p.j.Display = minus
-	p.k.Display = times
-	p.l.Display = divid
-	p.nums = []*keyblock.Key{p.a, p.s, p.d, p.f}
-	p.opers = []*keyblock.Key{p.h, p.j, p.k, p.l}
-	p.setLever(p.curLevel)
+	p.RegisterView(p.view)
+	p.RegisterView(p.view)
+	p.RegisterLevels(len(p.levels), p.setLever)
+	p.nums = keyblock.NewKeysLine("A", "S", "D", "F")
+	p.opers = keyblock.NewKeysLine("H", "J", "K", "L")
+	p.opers.SetDisplays(plus, minus, times, divid)
 	p.num = -1
 	return p.Base.Init()
 }
@@ -113,11 +88,8 @@ func (p *point24) view() string {
 }
 
 func (p *point24) setLever(i int) {
-	p.curLevel = i
 	level := p.levels[i]
-	for j, v := range level {
-		p.nums[j].SetNumber(v)
-	}
+	p.nums.SetNumbers(level[:]...)
 }
 
 func (p *point24) caculate(num int) {

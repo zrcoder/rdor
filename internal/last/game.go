@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	Name         = "Last"
+	name         = "Last"
 	width        = 10
 	height       = 10
 	defaultTotal = 30
@@ -42,44 +42,40 @@ var playSyles = []lipgloss.Style{
 }
 
 func New() game.Game {
-	return &last{Base: game.New(Name)}
+	return &last{Base: game.New(name)}
 }
 
 type last struct {
+	eatingPath *pathStack
 	*game.Base
-
-	numbersKey key.Binding
-
-	levels      []*level
-	levelIndex  int
-	commonCells int // the lefted commen cells' number, exclude the 2 players
 	rd          *rand.Rand
 	grid        *grid.Grid
 	helpGrid    *grid.Grid
 	charDic     map[rune]string
 	buf         *strings.Builder
-	players     [2]grid.Position // players[0]: me, players[1]: rival
+	numbersKey  *key.Binding
+	levels      []*level
+	players     [2]grid.Position
+	commonCells int
 	playerIndex int
 	eatingLeft  int
+	levelIndex  int
 	eating      bool
-	eatingPath  *pathStack
 	setting     bool
 }
 
 type tickMsg time.Time
 
 func (l *last) Init() tea.Cmd {
-	l.ViewFunc = l.view
-	l.KeyActionReset = l.setLevel
-	l.KeyActionNext = l.nextLevel
-	l.KeyActionPrevious = l.previousLevel
-	l.rd = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 	l.levels = getDefaultLevers()
+	l.RegisterLevels(len(l.levels), l.setLevel)
+	l.RegisterView(l.view)
+	l.rd = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 	l.buf = &strings.Builder{}
-	l.setLevel()
 	cmd := l.lifeTransform()
 	return tea.Batch(l.Base.Init(), cmd)
 }
+
 func (l *last) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	b, cmd := l.Base.Update(msg)
 	if b != l.Base {
@@ -91,7 +87,7 @@ func (l *last) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return l, tea.Batch(l.lifeTransform(), l.eat(), cmd)
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, l.numbersKey):
+		case key.Matches(msg, *l.numbersKey):
 			n, _ := strconv.Atoi(msg.String())
 			l.playerIndex = 0
 			l.eatingLeft = n
@@ -128,7 +124,7 @@ func (l *last) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (l *last) view() string {
 	l.buf.Reset()
 
-	l.grid.Range(func(pos grid.Position, char rune, isLineEnd bool) (end bool) {
+	l.grid.Range(func(_ grid.Position, char rune, isLineEnd bool) (end bool) {
 		l.buf.WriteString(l.charDic[char])
 		if isLineEnd {
 			l.buf.WriteByte('\n')
@@ -152,31 +148,24 @@ func (l *last) view() string {
 	return l.buf.String()
 }
 
-func (l *last) nextLevel() {
-	l.levelIndex = (l.levelIndex + 1) % len(l.levels)
-	l.setLevel()
-}
-func (l *last) previousLevel() {
-	l.levelIndex = (l.levelIndex + len(l.levels) - 1) % len(l.levels)
-	l.setLevel()
-}
-func (l *last) setLevel() {
+func (l *last) setLevel(i int) {
 	l.setting = true // wait for the user to decide whether to get started first
-	l.CommonKeys.Next.SetEnabled(false)
-	l.CommonKeys.Previous.SetEnabled(false)
-	l.numbersKey.SetEnabled(false)
 	l.eatingPath = &pathStack{}
+	l.levelIndex = i
 	curLvl := l.currentLevel()
 	l.commonCells = curLvl.totalCells - 2 // minus the 2 plays
 	keys := []string{}
 	for i := 1; i <= curLvl.eatingMax; i++ {
 		keys = append(keys, strconv.Itoa(i))
 	}
-	l.numbersKey = key.NewBinding(
+	numbersKey := key.NewBinding(
 		key.WithKeys(keys...),
 		key.WithHelp(fmt.Sprintf("1-%d", curLvl.eatingMax), "cells to eatk"),
 	)
-	l.Keys = []key.Binding{l.numbersKey}
+	l.numbersKey = &numbersKey
+	l.numbersKey.SetEnabled(false)
+	l.ClearGroups()
+	l.AddKeyGroup(game.KeyGroup{l.numbersKey})
 	l.rd.Shuffle(len(playSyles), func(i, j int) {
 		playSyles[i], playSyles[j] = playSyles[j], playSyles[i]
 	})
@@ -193,8 +182,6 @@ func (l *last) setLevel() {
 func (l *last) setted() {
 	l.setting = false
 	l.numbersKey.SetEnabled(true)
-	l.CommonKeys.Next.SetEnabled(true)
-	l.CommonKeys.Previous.SetEnabled(true)
 	ks := []string{"1", "2", "3", "4"}
 	l.numbersKey.SetKeys(ks[:l.currentLevel().eatingMax]...)
 	l.numbersKey.SetHelp(fmt.Sprintf("1-%d", l.currentLevel().eatingMax), "cells to eat")
@@ -223,10 +210,11 @@ func (l *last) genCells() {
 	})
 	l.grid.SetData(g)
 	l.helpGrid = grid.Copy(l.grid)
-	l.grid.Range(func(pos grid.Position, char rune, isLineEnd bool) (end bool) {
-		if char == me {
+	l.grid.Range(func(pos grid.Position, char rune, _ bool) (end bool) {
+		switch char {
+		case me:
 			l.players[0] = pos
-		} else if char == rival {
+		case rival:
 			l.players[1] = pos
 		}
 		return
@@ -244,7 +232,7 @@ func (l *last) lifeTransform() tea.Cmd {
 		return nil
 	}
 	cells := 0
-	l.grid.Range(func(pos grid.Position, char rune, isLineEnd bool) (end bool) {
+	l.grid.Range(func(pos grid.Position, char rune, _ bool) (end bool) {
 		l.helpGrid.Set(pos, l.grid.Get(pos))
 		if char == me || char == rival {
 			return
@@ -289,6 +277,7 @@ func (l *last) removeCells(g *grid.Grid, n int) {
 		l.changeCell(g, cell, blank)
 	}
 }
+
 func (l *last) addCells(g *grid.Grid, n int) {
 	for ; n > 0; n-- {
 		l.changeCell(g, blank, cell)

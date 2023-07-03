@@ -116,14 +116,14 @@ const (
 )
 
 type Dialog struct {
+	whiteSpaceForground lipgloss.TerminalColor
+	borderStyle         *lipgloss.Style
+	contentStyle        *lipgloss.Style
 	message             string
+	whiteSpaceChars     string
 	width               int
 	height              int
 	padding             int
-	borderStyle         *lipgloss.Style
-	contentStyle        *lipgloss.Style
-	whiteSpaceChars     string
-	whiteSpaceForground lipgloss.TerminalColor
 	kind                kind
 	totalStars          int
 	ernedStars          int
