@@ -56,6 +56,7 @@ func (p *nPuzzle) Init() tea.Cmd {
 	p.leftKey = &keys.Left
 	p.downKey = &keys.Down
 	p.rightKey = &keys.Right
+	p.ClearGroups()
 	p.AddKeyGroup(game.KeyGroup{p.upKey, p.leftKey, p.downKey, p.rightKey})
 	p.set(0)
 	return p.Base.Init()

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"strconv"
 	"strings"
 
 	"github.com/zrcoder/rdor/pkg/game"
@@ -15,17 +16,7 @@ import (
 )
 
 const (
-	name                = "Hanoi"
-	diskWidthUnit       = 4
-	horizontalSepBlanks = 1
-	poleWidth           = 1
-
-	poleCh     = "|"
-	diskCh     = " "
-	groundCh   = "‾"
-	pole1Label = "1"
-	pole2Label = "2"
-	pole3Label = "3"
+	name = "Hanoi"
 )
 
 var (
@@ -50,19 +41,8 @@ type hanoi struct {
 	steps      int
 }
 
-type disk struct {
-	view string
-	id   int
-}
-
-type pile struct {
-	*hanoi
-	disks   []*disk
-	overOne bool
-}
-
 func (h *hanoi) Init() tea.Cmd {
-	h.levels = []int{2, 3, 4, 5, 6, 7}
+	h.levels = []int{3, 4, 5, 6, 7}
 	h.maxDisks = h.levels[len(h.levels)-1]
 	h.pileWidth = diskWidthUnit*(h.maxDisks) + poleWidth
 	h.diskStyles = []lipgloss.Style{
@@ -109,8 +89,6 @@ func (h *hanoi) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (h *hanoi) view() string {
 	h.buf.Reset()
 	h.writePoles()
-	h.writeGround()
-	h.writeLabels()
 	h.writeState()
 	return h.buf.String()
 }
@@ -142,15 +120,12 @@ func (h *hanoi) setted(level int) {
 	h.overDisk = nil
 	h.piles = make([]*pile, 3)
 	for i := range h.piles {
-		h.piles[i] = &pile{hanoi: h}
+		h.piles[i] = &pile{hanoi: h, name: strconv.Itoa(i + 1)}
 	}
 	h.shuffleDiskStyles()
 	disks := make([]*disk, h.disks)
 	for i := 1; i <= h.disks; i++ {
-		disks[h.disks-i] = &disk{
-			id:   i,
-			view: h.diskStyles[i-1].Render(strings.Repeat(diskCh, i*diskWidthUnit)),
-		}
+		disks[h.disks-i] = newDisk(i, h.diskStyles[i-1])
 	}
 	h.piles[0].disks = disks
 }
@@ -206,25 +181,6 @@ func (h *hanoi) writePoles() {
 	h.writeBlankLine()
 }
 
-func (h *hanoi) writeGround() {
-	h.buf.WriteString(strings.Repeat(groundCh, (h.pileWidth*3 + horizontalSepBlanks*4)))
-	h.writeBlankLine()
-}
-
-func (h *hanoi) writeLabels() {
-	n := horizontalSepBlanks + (h.pileWidth-len(pole1Label))/2
-	h.buf.WriteString(strings.Repeat(" ", n))
-	h.buf.WriteString(pole1Label)
-	n = (h.pileWidth-len(pole1Label))/2 + horizontalSepBlanks + (h.pileWidth-len(pole2Label))/2
-	h.buf.WriteString(strings.Repeat(" ", n))
-	h.buf.WriteString(pole2Label)
-	n = (h.pileWidth-len(pole2Label))/2 + horizontalSepBlanks + (h.pileWidth-len(pole3Label))/2
-	h.buf.WriteString(strings.Repeat(" ", n))
-	h.buf.WriteString(pole3Label)
-	h.writeBlankLine()
-	h.writeBlankLine()
-}
-
 func (h *hanoi) writeState() {
 	h.writeLine(fmt.Sprintf("steps: %d\n", h.steps))
 }
@@ -241,57 +197,6 @@ func (h *hanoi) writeBlankLine() {
 func (h *hanoi) success() bool {
 	last := h.piles[len(h.piles)-1]
 	return len(last.disks) == h.disks
-}
-
-func (p *pile) empty() bool {
-	return len(p.disks) == 0
-}
-
-func (p *pile) push(d *disk) {
-	p.disks = append(p.disks, d)
-}
-
-func (p *pile) pop() *disk {
-	n := len(p.disks)
-	res := p.disks[n-1]
-	p.disks = p.disks[:n-1]
-	return res
-}
-
-func (p *pile) top() *disk {
-	n := len(p.disks)
-	return p.disks[n-1]
-}
-
-func (p *pile) view() string {
-	buf := strings.Builder{}
-	disks := p.disks
-	writeDisk := func() {
-		top := disks[len(disks)-1]
-		buf.WriteString(strings.Repeat(" ", (p.pileWidth-poleWidth-diskWidthUnit*top.id)/2+horizontalSepBlanks))
-		buf.WriteString(top.view)
-		buf.WriteString(strings.Repeat(" ", (p.pileWidth-poleWidth-diskWidthUnit*top.id)/2))
-		disks = disks[:len(disks)-1]
-	}
-	if p.overOne {
-		writeDisk()
-	} else {
-		buf.WriteString(strings.Repeat(" ", horizontalSepBlanks+p.pileWidth))
-	}
-	buf.WriteByte('\n')
-	for i := p.maxDisks; i > 0; i-- {
-		if i == len(disks) {
-			writeDisk()
-		} else {
-			buf.WriteString(strings.Repeat(" ", (p.pileWidth-poleWidth)/2+horizontalSepBlanks))
-			buf.WriteString(poleCh)
-			buf.WriteString(strings.Repeat(" ", (p.pileWidth-poleWidth)/2))
-		}
-		if i > 1 {
-			buf.WriteByte('\n')
-		}
-	}
-	return buf.String()
 }
 
 func (h *hanoi) shuffleDiskStyles() {

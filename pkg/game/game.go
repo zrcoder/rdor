@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/zrcoder/rdor/pkg/dialog"
 	"github.com/zrcoder/rdor/pkg/style"
+	"github.com/zrcoder/rdor/pkg/style/color"
 )
 
 type Game interface {
@@ -39,6 +40,7 @@ type Base struct {
 	viewFunc       ViewFunc
 	helpFunc       ViewFunc
 	keysHelp       help.Model
+	keysHelpStyle  lipgloss.Style
 	successMsg     string
 	failureMsg     string
 	width          int
@@ -121,6 +123,10 @@ func (g *Base) Init() tea.Cmd {
 	g.keysHelp.ShowAll = true
 	g.input = textinput.New()
 	g.setLevelAction(0)
+	g.keysHelpStyle = lipgloss.NewStyle().Border(
+		lipgloss.ThickBorder()).
+		Padding(0, 1).
+		BorderForeground(color.Faint)
 	return nil
 }
 
@@ -244,5 +250,5 @@ func (g *Base) keysHelpView() string {
 			views = append(views, "")
 		}
 	}
-	return lipgloss.JoinVertical(lipgloss.Left, views...)
+	return g.keysHelpStyle.Render(lipgloss.JoinVertical(lipgloss.Left, views...))
 }
