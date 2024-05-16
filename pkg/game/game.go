@@ -36,7 +36,7 @@ type Base struct {
 	setLevelAction SetLevelAction
 	name           string
 	parent         tea.Model
-	err            error
+	Err            error
 	viewFunc       ViewFunc
 	helpFunc       ViewFunc
 	keysHelp       help.Model
@@ -69,7 +69,7 @@ func (b *Base) SetParent(parent tea.Model) {
 }
 
 func (g *Base) SetError(err error) {
-	g.err = err
+	g.Err = err
 }
 
 func (g *Base) SetSuccess(msg string) {
@@ -134,7 +134,7 @@ func (g *Base) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		g.err = nil
+		g.Err = nil
 		g.showFailure = false
 		g.showSuccess = false
 		switch {
@@ -187,11 +187,11 @@ func (g *Base) View() string {
 func (g *Base) pickLevel(s string) {
 	n, err := strconv.Atoi(s)
 	if err != nil {
-		g.err = err
+		g.Err = err
 		return
 	}
 	if n < 1 || n > g.levels {
-		g.err = fmt.Errorf("the levels must between 1 and %d", g.levels)
+		g.Err = fmt.Errorf("the levels must between 1 and %d", g.levels)
 	}
 	g.setLevelAction(n - 1)
 }
@@ -212,10 +212,10 @@ func (g *Base) mainView() string {
 			String()
 	}
 
-	if g.err != nil {
+	if g.Err != nil {
 		return lipgloss.JoinVertical(lipgloss.Left,
 			g.viewFunc(),
-			style.Error.Render(g.err.Error()),
+			style.Error.Render(g.Err.Error()),
 		)
 	}
 

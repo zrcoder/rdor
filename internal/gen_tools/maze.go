@@ -47,7 +47,7 @@ func ReadLevel(s string) (string, error) {
 	return string(data), err
 }
 `)
-	err = os.WriteFile(filepath.Join(dir, "levels.go"), buf.Bytes(), 0600)
+	err = os.WriteFile(filepath.Join(dir, "levels.go"), buf.Bytes(), 0o600)
 	if err != nil {
 		panic(err)
 	}

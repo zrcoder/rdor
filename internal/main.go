@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/zrcoder/rdor/internal/crossword"
 	"github.com/zrcoder/rdor/internal/hanoi"
 	"github.com/zrcoder/rdor/internal/last"
 	"github.com/zrcoder/rdor/internal/maze"
@@ -21,6 +22,7 @@ import (
 func Run() error {
 	const title = "Welcome to rdor"
 	items := []list.Item{
+		crossword.New(),
 		hanoi.New(),
 		sokoban.New(),
 		maze.New(),

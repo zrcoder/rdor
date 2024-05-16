@@ -19,9 +19,7 @@ const (
 	name = "Hanoi"
 )
 
-var (
-	errCantMove = errors.New("can not move the disk above a smaller one")
-)
+var errCantMove = errors.New("can not move the disk above a smaller one")
 
 func New() game.Game {
 	return &hanoi{Base: game.New(name)}
