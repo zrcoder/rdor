@@ -1,9 +1,9 @@
 package crossword
 
 import (
-	"embed"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -11,29 +11,11 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	lg "github.com/charmbracelet/lipgloss"
 	"github.com/zrcoder/rdor/pkg/game"
 	"github.com/zrcoder/rdor/pkg/grid"
 	"github.com/zrcoder/rdor/pkg/keys"
-	"github.com/zrcoder/rdor/pkg/style/color"
-)
-
-//go:embed levels/*.toml
-var lvsFS embed.FS
-
-var (
-	currentBg = lipgloss.NewStyle().Background(color.Yellow)
-	fixBg     = lipgloss.NewStyle().Background(color.Green)
-	errGg     = lipgloss.NewStyle().Background(color.Red)
-)
-
-const (
-	name                     = "成语填字"
-	size                     = 9
-	candidatesLimit          = 26
-	emptyWord                = '　'
-	blankWord                = '〇'
-	candidatesCountInOneLine = 6
+	"github.com/zrcoder/rdor/pkg/style"
 )
 
 func New() game.Game {
@@ -43,25 +25,31 @@ func New() game.Game {
 type crossword struct {
 	*game.Base
 
-	grid         *Grid
-	cadidates    []*Word
-	boardBuf     *strings.Builder
-	candidateBuf *strings.Builder
-	state        string
-	downKey      *key.Binding
-	leftKey      *key.Binding
-	upKey        *key.Binding
-	rightKey     *key.Binding
-	directions   []grid.Direction
-	pos          grid.Position
+	grid          *Grid
+	candidates    []*Word
+	buf           *strings.Builder
+	candidateBuf  *strings.Builder
+	state         string
+	downKey       *key.Binding
+	leftKey       *key.Binding
+	upKey         *key.Binding
+	rightKey      *key.Binding
+	directions    []grid.Direction
+	pos           grid.Position
+	blankWord     *Word
+	candidatesPos map[byte]int
+	level         *Level
+	levels        int
+	blanks        int
 }
 
 func (c *crossword) Init() tea.Cmd {
 	c.RegisterView(c.view)
-	c.RegisterLevels(1, c.set)
-	c.boardBuf = &strings.Builder{}
+	c.loadSummary()
+	c.buf = &strings.Builder{}
 	c.candidateBuf = &strings.Builder{}
-	c.directions = []grid.Direction{grid.Up, grid.Left, grid.Down, grid.Right}
+	c.blankWord = &Word{state: WordStateBlank}
+	c.directions = []grid.Direction{grid.Down, grid.Right, grid.Up, grid.Left}
 	c.upKey = &keys.Up
 	c.leftKey = &keys.Left
 	c.downKey = &keys.Down
@@ -90,9 +78,15 @@ func (c *crossword) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, *c.rightKey):
 			c.move(grid.Right)
 		default:
-			if len(msg.Runes) > 0 && unicode.IsLetter(msg.Runes[0]) {
-				i := int(unicode.ToLower(msg.Runes[0]) - 'a')
-				c.pick(i)
+			if msg.Type == tea.KeyEnter {
+				c.pick(-1)
+				break
+			}
+			if len(msg.Runes) > 0 {
+				letter := byte(unicode.ToUpper(msg.Runes[0]))
+				if i, ok := c.candidatesPos[letter]; ok {
+					c.pick(i)
+				}
 			}
 		}
 	}
@@ -103,10 +97,31 @@ func (c *crossword) view() string {
 	if c.Err != nil {
 		return ""
 	}
-	return lipgloss.JoinVertical(lipgloss.Left,
+	return lg.JoinVertical(lg.Left,
 		c.boardView(),
 		c.candidatesView(),
+		"",
 		c.state)
+}
+
+func (c *crossword) loadSummary() {
+	path := filepath.Join("levels", "index.toml")
+	data, err := lvsFS.ReadFile(path)
+	if err != nil {
+		c.SetError(err)
+		return
+	}
+	type LevelSummary struct {
+		Levels int
+	}
+	ls := &LevelSummary{}
+	err = toml.Unmarshal(data, ls)
+	if err != nil {
+		c.SetError(err)
+		return
+	}
+	c.levels = ls.Levels
+	c.RegisterLevels(ls.Levels, c.set)
 }
 
 func (c *crossword) set(i int) {
@@ -115,148 +130,264 @@ func (c *crossword) set(i int) {
 		c.SetError(err)
 		return
 	}
-	lvl := &Level{}
-	err = toml.Unmarshal(data, lvl)
+	c.level = &Level{}
+	c.blanks = 0
+	err = toml.Unmarshal(data, c.level)
 	if err != nil {
 		c.SetError(err)
 		return
 	}
-	if c.grid, err = c.newGrid(lvl.Grid); err != nil {
-		c.SetError(err)
+	if c.newGrid(); c.Err != nil {
 		return
 	}
-	if c.cadidates, err = c.newCandidates(lvl.Candidates); err != nil {
-		c.SetError(err)
+	if c.newCandidates(); c.Err != nil {
 		return
 	}
+	c.state = style.Help.Render(fmt.Sprintf("%d/%d", i+1, c.levels))
 }
 
-func (c *crossword) newGrid(cfg string) (*Grid, error) {
-	if strings.Count(cfg, "\n") > size {
-		return nil, errors.New("配置中有太多行")
+func (c *crossword) newGrid() {
+	cfg := c.level.Grid
+	if len(cfg) > size {
+		c.SetError(errors.New("配置中有太多行"))
+		return
 	}
-	g := &Grid{}
-	c.pos.Row = -1
-	for i, row := range strings.SplitN(cfg, "\n", size) {
-		if utf8.RuneCountInString(row) > size {
-			return nil, errors.New("一行中有太多字")
-		}
+	c.grid = &Grid{}
+	for i, row := range cfg {
 		for j, v := range []rune(row) {
 			if v == emptyWord {
 				continue
 			}
-			g[i][j] = &Word{char: v, isFixed: v != blankWord, isBlank: v == blankWord}
-			if c.pos.Row == -1 && g[i][j].isBlank {
+			if v != blankWord {
+				c.grid[i][j] = &Word{char: v, state: WordStateRight}
+				continue
+			}
+			c.blanks++
+			c.grid[i][j] = c.blankWord
+			if c.blanks == 1 {
 				c.pos.Row = i
 				c.pos.Col = j
 			}
 		}
 	}
-	if c.pos.Row == -1 {
-		return nil, errors.New("没有空格要填")
+	if c.blanks == 0 {
+		c.SetError(errors.New("没有空格要填"))
 	}
-	return g, nil
 }
 
-func (c *crossword) newCandidates(cfg string) ([]*Word, error) {
+func (c *crossword) newCandidates() {
+	cfg := c.level.Candidates
 	size := utf8.RuneCountInString(cfg)
 	if size > candidatesLimit {
-		return nil, errors.New("too many candidaters")
+		c.SetError(errors.New("too many candidaters"))
+		return
 	}
-	res := make([]*Word, size)
+	c.candidates = make([]*Word, size)
+	c.candidatesPos = make(map[byte]int, size)
 	for i, v := range []rune(cfg) {
-		res[i] = &Word{char: v, candinatePos: i}
+		c.candidates[i] = &Word{char: v, candidatePos: i, destPos: c.level.AnswerPos[i]}
+		c.candidatesPos[candidatesKeys[i]] = i
 	}
-	return res, nil
 }
 
 func (c *crossword) boardView() string {
-	c.boardBuf.Reset()
+	c.buf.Reset()
 	for i, row := range c.grid {
 		for j, word := range row {
 			if word == nil {
-				c.boardBuf.WriteRune(emptyWord)
+				c.buf.WriteRune(emptyWord)
 				continue
 			}
 			s := string(word.char)
-			switch {
-			case word.isBlank:
+			switch word.state {
+			case WordStateBlank:
 				s = string(blankWord)
-			case word.isFixed:
-				s = fixBg.Render(s)
-			case word.isWrong:
-				s = errGg.Render(s)
+			case WordStateRight:
+				s = rightBg.Render(s)
+			case WordStateWrong:
+				if i != c.pos.Row || j != c.pos.Col {
+					s = wrongBg.Render(s)
+				}
 			}
 			if i == c.pos.Row && j == c.pos.Col {
-				s = currentBg.Render(s)
+				s = curBg.Render(s)
 			}
-			c.boardBuf.WriteString(s)
+			c.buf.WriteString(s)
 		}
-		c.boardBuf.WriteString("\n")
+		c.buf.WriteString("\n")
 	}
-	return c.boardBuf.String()
+	return boardStyle.Render(c.buf.String())
 }
 
 func (c *crossword) candidatesView() string {
-	c.boardBuf.Reset()
-	for i, w := range c.cadidates {
-		c.boardBuf.WriteRune(rune('A' + i))
-		c.boardBuf.WriteRune(':')
+	c.buf.Reset()
+	for i, w := range c.candidates {
+		c.buf.WriteByte(candidatesKeys[i])
+		c.buf.WriteRune(':')
 		if w != nil {
-			c.boardBuf.WriteRune(w.char)
+			c.buf.WriteRune(w.char)
 		} else {
-			c.boardBuf.WriteRune(emptyWord)
+			c.buf.WriteRune(emptyWord)
 		}
-		if (i+1)%candidatesCountInOneLine == 0 {
-			c.boardBuf.WriteRune('\n')
+		if (i+1)%candidatesPerLine == 0 {
+			c.buf.WriteRune('\n')
 		} else {
-			c.boardBuf.WriteRune(emptyWord)
+			c.buf.WriteRune(emptyWord)
 		}
 	}
-	return c.boardBuf.String()
+	return boardStyle.Render(c.buf.String())
 }
 
 func (c *crossword) move(d grid.Direction) {
 	cnt := 0
-	for i, j := (c.pos.Row+size+d.Dy)%size, (c.pos.Col+size+d.Dx)%size; cnt < size*size; cnt++ {
+	i, j := (c.pos.Row+size+d.Dy)%size, (c.pos.Col+size+d.Dx)%size
+	for cnt < size*size {
 		if i == c.pos.Row && j == c.pos.Col {
-			if d.Dy == 0 {
-				i = (i + 1) % size
-				j = 0
-			} else {
-				i = 0
-				j = (j + 1) % size
-			}
-		} else {
-			if c.grid[i][j] != nil && !c.grid[i][j].isFixed {
-				c.pos.Row = i
-				c.pos.Col = j
-				break
-			}
-			i, j = (i+d.Dy+size)%size, (j+d.Dx+size)%size
+			c.moveToNextBlankPos()
+			return
 		}
+		if c.grid[i][j] != nil && !c.grid[i][j].Fixed() {
+			c.pos.Row = i
+			c.pos.Col = j
+			return
+		}
+		i, j = (i+d.Dy+size)%size, (j+d.Dx+size)%size
+		cnt++
 	}
-	if cnt == size*size {
-		c.SetError(errors.New("无法移动"))
-		return
-	}
+	c.SetError(errors.New("无法移动"))
 }
 
 func (c *crossword) pick(i int) {
-	word := c.cadidates[i]
+	if i == -1 {
+		cur := c.curWord()
+		if cur == c.blankWord || cur.Fixed() {
+			return
+		}
+		c.setCurWord(c.blankWord)
+		c.candidates[cur.candidatePos] = cur
+		return
+	}
+
+	word := c.candidates[i]
+	c.candidates[i] = nil
 	if word == nil {
 		return
 	}
-	tmp := c.grid[c.pos.Row][c.pos.Col]
-	c.grid[c.pos.Row][c.pos.Col] = word
-	if tmp != nil {
-		c.cadidates[tmp.candinatePos] = tmp
+	cur := c.curWord()
+	c.setCurWord(word)
+	if cur.state != WordStateBlank {
+		c.candidates[cur.candidatePos] = cur
+	}
+	if !c.check() {
+		return
 	}
 	if c.success() {
-		c.SetSuccess("")
+		c.SetSuccess("成功")
+		return
 	}
+	c.moveToNextBlankPos()
 }
 
 func (c *crossword) success() bool {
-	return false
+	return c.blanks == 0
+}
+
+func (c *crossword) check() bool {
+	return c.checkHorizental() && c.checkVertical()
+}
+
+func (c *crossword) checkHorizental() bool {
+	left, right := c.pos.Col, c.pos.Col
+	for ; left > 0 && c.grid[c.pos.Row][left] != nil && c.grid[c.pos.Row][left].state != WordStateBlank; left-- {
+	}
+	for ; right < size && c.grid[c.pos.Row][right] != nil && c.grid[c.pos.Row][right].state != WordStateBlank; right++ {
+	}
+	if left+1+idiomLen == right {
+		ok := true
+		for i := left + 1; i < right; i++ {
+			word := c.grid[c.pos.Row][i]
+			if word.Fixed() {
+				continue
+			}
+			pos := c.pos.Row*size + i
+			if word.destPos != pos {
+				ok = false
+				word.state = WordStateWrong
+			} else {
+				c.blanks--
+				word.state = WordStateRight
+			}
+		}
+		if !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func (c *crossword) checkVertical() bool {
+	up, down := c.pos.Row, c.pos.Row
+	for ; up > 0 && c.grid[up][c.pos.Col] != nil && c.grid[up][c.pos.Col].state != WordStateBlank; up-- {
+	}
+	for ; down < size && c.grid[down][c.pos.Col] != nil && c.grid[down][c.pos.Col].state != WordStateBlank; down++ {
+	}
+	if up+1+idiomLen == down {
+		ok := true
+		for i := up + 1; i < down; i++ {
+			word := c.grid[i][c.pos.Col]
+			if word.Fixed() {
+				continue
+			}
+			pos := i*size + c.pos.Col
+			if word.destPos != pos {
+				word.state = WordStateWrong
+			} else {
+				c.blanks--
+				word.state = WordStateRight
+			}
+		}
+		if !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func (c *crossword) moveToNextBlankPos() {
+	seen := make(map[grid.Position]bool, size*size)
+	seen[c.pos] = true
+	q := []grid.Position{c.pos}
+	for len(q) > 0 {
+		cur := q[0]
+		q = q[1:]
+		for _, d := range c.directions {
+			next := grid.TransForm(cur, d)
+			if c.outOfRange(&next) || seen[next] {
+				continue
+			}
+			seen[next] = true
+			word := c.getWord(&next)
+			if word != nil && !word.Fixed() {
+				c.pos = next
+				return
+			}
+			q = append(q, next)
+		}
+	}
+}
+
+func (c *crossword) curWord() *Word {
+	return c.grid[c.pos.Row][c.pos.Col]
+}
+
+func (c *crossword) setCurWord(w *Word) {
+	c.grid[c.pos.Row][c.pos.Col] = w
+}
+
+func (c *crossword) getWord(p *grid.Position) *Word {
+	return c.grid[p.Row][p.Col]
+}
+
+func (c *crossword) outOfRange(p *grid.Position) bool {
+	return p.Row < 0 || p.Row >= size || p.Col < 0 || p.Col >= size
 }
