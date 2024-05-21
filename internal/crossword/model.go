@@ -11,10 +11,11 @@ import (
 var lvsFS embed.FS
 
 var (
-	rightBg    = lg.NewStyle().Background(color.Green)
+	rightBg    = lg.NewStyle().Background(color.Faint)
 	wrongBg    = lg.NewStyle().Background(color.Red)
-	blankBg    = lg.NewStyle().Background(color.Yellow)
-	curBg      = lg.NewStyle().Background(color.Orange)
+	blankBg    = lg.NewStyle().Background(color.Orange)
+	curBg      = lg.NewStyle().Background(color.Violet)
+	successBg  = lg.NewStyle().Background(color.Green)
 	boardStyle = lg.NewStyle().Width(boardWidth)
 )
 

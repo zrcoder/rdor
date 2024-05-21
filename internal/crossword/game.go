@@ -80,11 +80,15 @@ func (c *crossword) view() string {
 	if c.Err != nil {
 		return ""
 	}
+	last := c.state
+	if c.success() {
+		last = lg.JoinHorizontal(lg.Top, last, successBg.Render(" 成功 "))
+	}
 	return lg.JoinVertical(lg.Left,
 		c.boardView(),
 		c.candidatesView(),
 		"",
-		c.state)
+		last)
 }
 
 func (c *crossword) loadSummary() {

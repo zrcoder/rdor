@@ -22,11 +22,11 @@ import (
 func Run() error {
 	const title = "Welcome to rdor"
 	items := []list.Item{
-		crossword.New(),
 		hanoi.New(),
 		sokoban.New(),
 		maze.New(),
 		npuzzle.New(),
+		crossword.New(),
 		last.New(),
 	}
 	m := &rdor{

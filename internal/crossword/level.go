@@ -78,22 +78,24 @@ func (l *Level) boardView() string {
 	l.buf.Reset()
 	for i, row := range l.grid {
 		for j, word := range row {
-			switch {
-			case word == nil:
+			if word == nil {
 				l.buf.WriteRune(emptyWord)
-			case word.state == WordStateRight:
-				l.buf.WriteString(rightBg.Render(string(word.char)))
-			case word.state == WordStateWrong:
-				l.buf.WriteString(wrongBg.Render(string(word.char)))
-			case word.state == WordStateBlank:
-				if i == l.pos.Row && j == l.pos.Col {
-					l.buf.WriteString(curBg.Render(string(emptyWord)))
-				} else {
-					l.buf.WriteString(blankBg.Render(string(emptyWord)))
-				}
-			default:
-				l.buf.WriteString(string(word.char))
+				continue
 			}
+			bg := blankBg
+			s := string(word.char)
+			switch word.state {
+			case WordStateRight:
+				bg = rightBg
+			case WordStateWrong:
+				bg = wrongBg
+			case WordStateBlank:
+				s = string(emptyWord)
+			}
+			if i == l.pos.Row && j == l.pos.Col && !word.Fixed() {
+				bg = curBg
+			}
+			l.buf.WriteString(bg.Render(s))
 		}
 		l.buf.WriteString("\n")
 	}
@@ -144,20 +146,16 @@ func (l *Level) pick(i int) {
 		return
 	}
 	word := l.candidates[i]
-	if word == nil {
+	cur := l.curWord()
+	if word == nil || cur != nil && cur.Fixed() {
 		return
 	}
 	l.candidates[i] = nil
-	cur := l.curWord()
 	l.setCurWord(word)
 	if cur.state != WordStateBlank {
 		l.candidates.Set(cur)
 	}
-	if !l.check() {
-		return
-	}
-	if l.success() {
-		l.SetSuccess("成功")
+	if !l.check() || l.success() {
 		return
 	}
 	l.moveToNearestPos()
@@ -180,21 +178,7 @@ func (l *Level) checkHorizental() bool {
 	if left+1+idiomLen != right {
 		return true
 	}
-	ok := true
-	for i := left + 1; i < right; i++ {
-		word := l.grid.get(l.pos.Row, i)
-		if word.Fixed() {
-			continue
-		}
-		if word.destPos != l.pos.Row*size+i {
-			ok = false
-			word.state = WordStateWrong
-		} else {
-			l.blanks--
-			word.state = WordStateRight
-		}
-	}
-	return ok
+	return l.checkIdiom(l.pos.Row, left+1, l.pos.Row, right-1)
 }
 
 func (l *Level) checkVertical() bool {
@@ -206,17 +190,33 @@ func (l *Level) checkVertical() bool {
 	if up+1+idiomLen != down {
 		return true
 	}
+	return l.checkIdiom(up+1, l.pos.Col, down-1, l.pos.Col)
+}
+
+func (l *Level) checkIdiom(startR, startC, endR, endC int) bool {
 	ok := true
-	for i := up + 1; i < down; i++ {
-		word := l.grid.get(i, l.pos.Col)
-		if word.Fixed() {
-			continue
+	for i := startR; i <= endR; i++ {
+		for j := startC; j <= endC; j++ {
+			word := l.grid.get(i, j)
+			if !word.Fixed() && word.destPos != i*size+j {
+				ok = false
+				break
+			}
 		}
-		if word.destPos != i*size+l.pos.Col {
-			word.state = WordStateWrong
-		} else {
-			l.blanks--
-			word.state = WordStateRight
+	}
+	state := WordStateRight
+	delta := -1
+	if !ok {
+		state = WordStateWrong
+		delta = 0
+	}
+	for i := startR; i <= endR; i++ {
+		for j := startC; j <= endC; j++ {
+			word := l.grid.get(i, j)
+			if !word.Fixed() {
+				word.state = state
+				l.blanks += delta
+			}
 		}
 	}
 	return ok

@@ -1,1 +1,4 @@
+# 配置来源：https://github.com/huzongyao/vue-idiom-puzzle/blob/master/src/idiom_map.json
+
+# 关卡总数，关卡从 00 开始，到 levels-1 结束
 levels = 60
