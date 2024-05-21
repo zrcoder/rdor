@@ -14,9 +14,13 @@ Inspired by [sokoban-go](https://github.com/rn2dy/sokoban-go)
 
 ## Maze
 
-Leveles cloned from [mazefiles](https://github.com/micromouseonline/mazefiles)
+Leveles based on [mazefiles](https://github.com/micromouseonline/mazefiles)
 
 ## N-Puzzle
+
+## 成语填字
+
+Leveles based on [vue-idiom-puzzle](https://github.com/huzongyao/vue-idiom-puzzle)
 
 ## Last
 
