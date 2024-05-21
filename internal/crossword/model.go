@@ -11,9 +11,10 @@ import (
 var lvsFS embed.FS
 
 var (
-	curBg      = lg.NewStyle().Background(color.Yellow)
 	rightBg    = lg.NewStyle().Background(color.Green)
 	wrongBg    = lg.NewStyle().Background(color.Red)
+	blankBg    = lg.NewStyle().Background(color.Yellow)
+	curBg      = lg.NewStyle().Background(color.Orange)
 	boardStyle = lg.NewStyle().Width(boardWidth)
 )
 
@@ -28,14 +29,6 @@ const (
 	candidatesLimit   = len(candidatesKeys)
 	boardWidth        = 50
 )
-
-type Level struct {
-	Grid       []string `toml:"grid"`
-	Candidates string   `toml:"candidates"`
-	AnswerPos  []int    `toml:"answerPos"`
-}
-
-type Grid [size][size]*Word
 
 type WordState int
 
@@ -55,4 +48,22 @@ type Word struct {
 
 func (w Word) Fixed() bool {
 	return w.state == WordStateRight
+}
+
+func (w *Word) isEmpty() bool {
+	return w == nil || w.char == emptyWord
+}
+
+type (
+	Grid       [size][size]*Word
+	Candidates []*Word
+)
+
+func (g *Grid) get(i, j int) *Word {
+	return g[i][j]
+}
+
+func (cs Candidates) Set(word *Word) {
+	word.state = WordStateInit
+	cs[word.candidatePos] = word
 }

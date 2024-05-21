@@ -95,12 +95,20 @@ type Direction struct {
 	Dy int
 }
 
+func (p Position) TransForm(d Direction) Position {
+	return TransForm(p, d)
+}
+
 func (d Direction) Scale(n int) Direction {
 	return Direction{Dx: d.Dx * n, Dy: d.Dy * n}
 }
 
 func (d Direction) Opposite() Direction {
 	return Direction{Dx: -d.Dx, Dy: -d.Dy}
+}
+
+func (d Direction) Rotate() Direction {
+	return Direction{Dx: -d.Dy, Dy: d.Dx}
 }
 
 var (
