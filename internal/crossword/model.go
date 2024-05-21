@@ -16,7 +16,7 @@ var (
 	blankBg    = lg.NewStyle().Background(color.Orange)
 	curBg      = lg.NewStyle().Background(color.Violet)
 	successBg  = lg.NewStyle().Background(color.Green)
-	boardStyle = lg.NewStyle().Width(boardWidth)
+	boardStyle = lg.NewStyle().Width(boardWidth).Border(lg.NormalBorder()).BorderForeground(color.Faint)
 )
 
 const (
@@ -28,7 +28,7 @@ const (
 	idiomLen          = 4
 	candidatesKeys    = "ACDEFGHIJKLMOTUVWXYZ"
 	candidatesLimit   = len(candidatesKeys)
-	boardWidth        = 50
+	boardWidth        = 35
 )
 
 type WordState int

@@ -82,7 +82,7 @@ func (c *crossword) view() string {
 	}
 	last := c.state
 	if c.success() {
-		last = lg.JoinHorizontal(lg.Top, last, successBg.Render(" 成功 "))
+		last = lg.JoinHorizontal(lg.Top, last, "  ", successBg.Render(" 成功 "))
 	}
 	return lg.JoinVertical(lg.Left,
 		c.boardView(),

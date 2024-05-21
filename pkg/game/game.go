@@ -7,8 +7,8 @@ import (
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/zrcoder/rdor/pkg/dialog"
 	"github.com/zrcoder/rdor/pkg/style"
@@ -31,7 +31,8 @@ type Base struct {
 	keyMap         *KeyMap
 	keyGroups      []KeyGroup
 	levels         int
-	input          textinput.Model
+	input          *huh.Input
+	showInput      bool
 	currentLevel   int
 	setLevelAction SetLevelAction
 	name           string
@@ -68,38 +69,38 @@ func (b *Base) SetParent(parent tea.Model) {
 	b.parent = parent
 }
 
-func (g *Base) SetError(err error) {
-	g.Err = err
+func (b *Base) SetError(err error) {
+	b.Err = err
 }
 
-func (g *Base) SetSuccess(msg string) {
-	g.showSuccess = true
-	g.successMsg = msg
+func (b *Base) SetSuccess(msg string) {
+	b.showSuccess = true
+	b.successMsg = msg
 }
 
-func (g *Base) SetStars(total, erned int) {
-	g.totalStars = total
-	g.ernedStars = erned
+func (b *Base) SetStars(total, erned int) {
+	b.totalStars = total
+	b.ernedStars = erned
 }
 
-func (g *Base) SetFailure(msg string) {
-	g.showFailure = true
-	g.failureMsg = msg
+func (b *Base) SetFailure(msg string) {
+	b.showFailure = true
+	b.failureMsg = msg
 }
 
-func (g *Base) RegisterView(action ViewFunc) {
-	g.viewFunc = action
+func (b *Base) RegisterView(action ViewFunc) {
+	b.viewFunc = action
 }
 
-func (g *Base) ClearGroups() {
-	if g.keyGroups == nil {
+func (b *Base) ClearGroups() {
+	if b.keyGroups == nil {
 		return
 	}
-	g.keyGroups = g.keyGroups[:0]
+	b.keyGroups = b.keyGroups[:0]
 }
 
-func (g *Base) AddKeyGroup(group KeyGroup) {
-	g.keyGroups = append(g.keyGroups, group)
+func (b *Base) AddKeyGroup(group KeyGroup) {
+	b.keyGroups = append(b.keyGroups, group)
 }
 
 func (b *Base) RegisterLevels(total int, action SetLevelAction) {
@@ -113,135 +114,144 @@ func (b *Base) RegisterLevels(total int, action SetLevelAction) {
 	}
 }
 
-func (g *Base) RegisterHelp(action ViewFunc) {
-	g.keyMap.help.SetEnabled(true)
-	g.helpFunc = action
+func (b *Base) RegisterHelp(action ViewFunc) {
+	b.keyMap.help.SetEnabled(true)
+	b.helpFunc = action
 }
 
-func (g *Base) Init() tea.Cmd {
-	g.keysHelp = help.New()
-	g.keysHelp.ShowAll = true
-	g.input = textinput.New()
-	g.setLevelAction(0)
-	g.keysHelpStyle = lipgloss.NewStyle().Border(
+func (b *Base) Init() tea.Cmd {
+	b.keysHelp = help.New()
+	b.keysHelp.ShowAll = true
+	b.setLevelAction(0)
+	b.newInput()
+	b.keysHelpStyle = lipgloss.NewStyle().Border(
 		lipgloss.ThickBorder()).
 		Padding(0, 1).
 		BorderForeground(color.Faint)
 	return nil
 }
 
-func (g *Base) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (b *Base) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
-	switch msg := msg.(type) {
+	orimsg := msg
+	switch msg := orimsg.(type) {
 	case tea.KeyMsg:
-		g.Err = nil
-		g.showFailure = false
-		g.showSuccess = false
+		b.Err = nil
+		b.showFailure = false
+		b.showSuccess = false
 		switch {
-		case key.Matches(msg, *g.keyMap.quit):
-			return g, tea.Quit
-		case key.Matches(msg, *g.keyMap.back):
-			return g.parent, nil
-		case key.Matches(msg, *g.keyMap.help):
-			g.showHelp = !g.showHelp
-		case key.Matches(msg, *g.keyMap.reset):
-			g.setLevelAction(g.currentLevel)
-		case key.Matches(msg, *g.keyMap.next):
-			g.currentLevel = (g.currentLevel + 1) % g.levels
-			g.setLevelAction(g.currentLevel)
-		case key.Matches(msg, *g.keyMap.previous):
-			g.currentLevel = (g.currentLevel - 1 + g.levels) % g.levels
-			g.setLevelAction(g.currentLevel)
-		case key.Matches(msg, *g.keyMap.setLevel):
-			g.input.Placeholder = fmt.Sprintf("1-%d", g.levels)
-			cmd = g.input.Focus()
+		case key.Matches(msg, *b.keyMap.quit):
+			return b, tea.Quit
+		case key.Matches(msg, *b.keyMap.back):
+			return b.parent, nil
+		case key.Matches(msg, *b.keyMap.help):
+			b.showHelp = !b.showHelp
+		case key.Matches(msg, *b.keyMap.reset):
+			b.setLevelAction(b.currentLevel)
+		case key.Matches(msg, *b.keyMap.next):
+			b.currentLevel = (b.currentLevel + 1) % b.levels
+			b.setLevelAction(b.currentLevel)
+			b.newInput()
+		case key.Matches(msg, *b.keyMap.previous):
+			b.currentLevel = (b.currentLevel - 1 + b.levels) % b.levels
+			b.setLevelAction(b.currentLevel)
+			b.newInput()
+		case key.Matches(msg, *b.keyMap.setLevel):
+			b.showInput = true
+			b.input.Placeholder(fmt.Sprintf("1-%d", b.levels))
+			b.input.Focus()
+			cmd = b.input.Focus()
+		case b.showInput && msg.Type == tea.KeyEnter:
+			b.showInput = false
+			b.input.Blur()
+			b.pickLevel(b.input.GetValue().(string))
+			b.newInput()
 		default:
-			if msg.Type == tea.KeyEnter && g.input.Focused() {
-				g.input.Blur()
-				g.pickLevel(g.input.Value())
-				g.input.SetValue("")
+			if b.showInput {
+				_, cmd = b.input.Update(orimsg)
 			}
 		}
 	case tea.WindowSizeMsg:
-		g.width = msg.Width
-		g.height = msg.Height
-		g.keysHelp.Width = msg.Width
+		b.width = msg.Width
+		b.height = msg.Height
+		b.keysHelp.Width = msg.Width
 	}
-	return g, cmd
+	return b, cmd
 }
 
-func (g *Base) View() string {
+func (b *Base) View() string {
 	return lipgloss.NewStyle().Padding(1, 3).Render(
 		lipgloss.JoinVertical(lipgloss.Left,
-			style.Title.Render(g.name),
+			style.Title.Render(b.name),
 			"",
 			lipgloss.JoinHorizontal(lipgloss.Top,
-				g.mainView(),
+				b.mainView(),
 				"    ",
-				g.keysHelpView(),
+				b.keysHelpView(),
 			),
 		),
 	)
 }
 
-func (g *Base) pickLevel(s string) {
+func (b *Base) pickLevel(s string) {
 	n, err := strconv.Atoi(s)
 	if err != nil {
-		g.Err = err
+		b.Err = err
 		return
 	}
-	if n < 1 || n > g.levels {
-		g.Err = fmt.Errorf("the levels must between 1 and %d", g.levels)
+	if n < 1 || n > b.levels {
+		b.Err = fmt.Errorf("the levels must between 1 and %d", b.levels)
+		return
 	}
-	g.setLevelAction(n - 1)
+	b.setLevelAction(n - 1)
 }
 
-func (g *Base) mainView() string {
-	if g.showSuccess {
-		return dialog.Success(g.successMsg).
-			Stars(g.totalStars, g.ernedStars).
-			WhiteSpaceChars(g.name).
-			Width(g.width).Height(g.height).
+func (b *Base) mainView() string {
+	if b.showSuccess {
+		return dialog.Success(b.successMsg).
+			Stars(b.totalStars, b.ernedStars).
+			WhiteSpaceChars(b.name).
+			Width(b.width).Height(b.height).
 			String()
 	}
 
-	if g.showFailure {
-		return dialog.Error(g.failureMsg).
-			WhiteSpaceChars(g.name).
-			Width(g.width).Height(g.height).
+	if b.showFailure {
+		return dialog.Error(b.failureMsg).
+			WhiteSpaceChars(b.name).
+			Width(b.width).Height(b.height).
 			String()
 	}
 
-	if g.Err != nil {
+	if b.Err != nil {
 		return lipgloss.JoinVertical(lipgloss.Left,
-			g.viewFunc(),
-			style.Error.Render(g.Err.Error()),
+			b.viewFunc(),
+			style.Error.Render(b.Err.Error()),
 		)
 	}
 
-	if g.showHelp {
+	if b.showHelp {
 		return lipgloss.JoinVertical(lipgloss.Left,
-			g.viewFunc(),
-			g.helpFunc(),
+			b.viewFunc(),
+			b.helpFunc(),
 		)
 	}
 
-	res := g.viewFunc()
-	if g.input.Focused() {
+	res := b.viewFunc()
+	if b.showInput {
 		return lipgloss.JoinVertical(lipgloss.Left,
 			res,
-			"pick a level",
-			g.input.View(),
+			"",
+			b.input.View(),
 		)
 	}
 	return res
 }
 
-func (g *Base) keysHelpView() string {
-	groups := append(g.keyGroups, g.keyMap.groups...)
-	views := make([]string, 0, 2*len(g.keyGroups)+1)
+func (b *Base) keysHelpView() string {
+	groups := append(b.keyGroups, b.keyMap.groups...)
+	views := make([]string, 0, 2*len(b.keyGroups)+1)
 	for i, group := range groups {
-		view := g.keysHelp.View(group)
+		view := b.keysHelp.View(group)
 		if view == "" {
 			continue
 		}
@@ -250,5 +260,9 @@ func (g *Base) keysHelpView() string {
 			views = append(views, "")
 		}
 	}
-	return g.keysHelpStyle.Render(lipgloss.JoinVertical(lipgloss.Left, views...))
+	return b.keysHelpStyle.Render(lipgloss.JoinVertical(lipgloss.Left, views...))
+}
+
+func (b *Base) newInput() {
+	b.input = huh.NewInput().Title("pick a level").Inline(true)
 }
