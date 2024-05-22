@@ -4,24 +4,13 @@ import (
 	"strings"
 )
 
-type char interface {
-	View() string
-	comparable
-}
-
-type Rune rune
-
-func (r Rune) View() string {
-	return string(r)
-}
-
-type Grid[T char] struct {
+type Grid[T comparable] struct {
 	rows int
 	cols int
 	data [][]T
 }
 
-func New[T char](rows, cols int) *Grid[T] {
+func New[T comparable](rows, cols int) *Grid[T] {
 	data := make([][]T, rows)
 	for i := range data {
 		data[i] = make([]T, cols)
@@ -29,18 +18,15 @@ func New[T char](rows, cols int) *Grid[T] {
 	return &Grid[T]{data: data, rows: rows, cols: cols}
 }
 
-func NewWithString(s string) *Grid[Rune] {
+func NewWithString(s string) *Grid[rune] {
 	lines := strings.Split(s, "\n")
-	data := make([][]Rune, len(lines))
+	data := make([][]rune, len(lines))
 	cols := 0
 	for i, line := range lines {
-		data[i] = make([]Rune, len(line))
-		cols = max(cols, len(line))
-		for j, r := range line {
-			data[i][j] = Rune(r)
-		}
+		data[i] = []rune(line)
+		cols = max(cols, len(data[i]))
 	}
-	return &Grid[Rune]{data: data, rows: len(lines), cols: cols}
+	return &Grid[rune]{data: data, rows: len(lines), cols: cols}
 }
 
 func (g *Grid[T]) SetData(data [][]T) {
@@ -95,7 +81,7 @@ func (g *Grid[T]) OutBound(pos Position) bool {
 		pos.Col < 0 || pos.Col >= len(g.data[pos.Row])
 }
 
-type RangeAction[T char] func(pos Position, char T, isLineEnd bool) (end bool)
+type RangeAction[T comparable] func(pos Position, char T, isLineEnd bool) (end bool)
 
 func (g *Grid[T]) Range(action RangeAction[T]) {
 	for i, row := range g.data {
@@ -117,17 +103,6 @@ func (g *Grid[T]) Getrc(row, col int) T {
 
 func (g *Grid[T]) Set(p Position, val T) {
 	g.data[p.Row][p.Col] = val
-}
-
-func (g *Grid[T]) String() string {
-	buf := strings.Builder{}
-	for _, line := range g.data {
-		for _, r := range line {
-			buf.WriteString(r.View())
-		}
-		buf.WriteByte('\n')
-	}
-	return buf.String()
 }
 
 func (g *Grid[T]) Nearest(from Position, dirs []Direction, ok func(Position) bool, dir ...Direction) *Position {

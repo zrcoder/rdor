@@ -44,8 +44,8 @@ type maze struct {
 	rightKey *key.Binding
 	myPos    grid.Position
 	goals    map[grid.Position]bool
-	grid     *grid.Grid[grid.Rune]
-	helpGrid *grid.Grid[grid.Rune]
+	grid     *grid.Grid[rune]
+	helpGrid *grid.Grid[rune]
 	rand     *rand.Rand
 	buf      *strings.Builder
 }
@@ -98,8 +98,8 @@ func (m *maze) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *maze) view() string {
 	m.buf.Reset()
 
-	m.grid.Range(func(pos grid.Position, char grid.Rune, isLineEnd bool) (end bool) {
-		m.buf.WriteRune(rune(char))
+	m.grid.Range(func(pos grid.Position, char rune, isLineEnd bool) (end bool) {
+		m.buf.WriteRune(char)
 		if isLineEnd {
 			m.buf.WriteRune('\n')
 		}
@@ -131,8 +131,8 @@ func (m *maze) reset() {
 }
 
 func (m *maze) reMap() {
-	m.grid.Range(func(pos grid.Position, char grid.Rune, isLineEnd bool) (end bool) {
-		v, ok := m.charMap[rune(char)]
+	m.grid.Range(func(pos grid.Position, char rune, isLineEnd bool) (end bool) {
+		v, ok := m.charMap[char]
 		if !ok {
 			panic("invalid level config")
 		}
@@ -141,7 +141,7 @@ func (m *maze) reMap() {
 		} else if v == goal {
 			m.goals[pos] = true
 		}
-		m.grid.Set(pos, grid.Rune(v))
+		m.grid.Set(pos, v)
 		return
 	})
 }

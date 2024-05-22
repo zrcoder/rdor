@@ -2,7 +2,6 @@ package sokoban
 
 import (
 	"embed"
-	"errors"
 	"strconv"
 	"strings"
 
@@ -40,8 +39,8 @@ type sokoban struct {
 	blocks map[rune]string
 	buf    *strings.Builder
 	*game.Base
-	grid     *grid.Grid[grid.Rune]
-	helpGrid *grid.Grid[grid.Rune]
+	grid     *grid.Grid[rune]
+	helpGrid *grid.Grid[rune]
 	upKey    *key.Binding
 	rightKey *key.Binding
 	downKey  *key.Binding
@@ -96,8 +95,8 @@ func (s *sokoban) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (s *sokoban) view() string {
 	s.buf.Reset()
-	s.grid.Range(func(_ grid.Position, char grid.Rune, isLineEnd bool) (end bool) {
-		s.buf.WriteString(s.blocks[rune(char)])
+	s.grid.Range(func(_ grid.Position, char rune, isLineEnd bool) (end bool) {
+		s.buf.WriteString(s.blocks[char])
 		if isLineEnd {
 			s.buf.WriteByte('\n')
 		}
@@ -110,19 +109,6 @@ func (s *sokoban) helpInfo() string {
 	return "Our goal is to push all the boxes into the slots without been stuck somewhere."
 }
 
-func (s *sokoban) setted(level string) {
-	n, err := strconv.Atoi(level)
-	if err != nil {
-		s.SetError(errors.New("invalid number"))
-		return
-	}
-	if n < 1 || n > maxLevel+1 {
-		s.SetError(errors.New("level out of range"))
-		return
-	}
-	s.loadLever(n)
-}
-
 func (s *sokoban) loadLever(i int) {
 	data, err := levelsFS.ReadFile("levels/" + strconv.Itoa(i+1) + ".txt")
 	if err != nil {
@@ -130,7 +116,7 @@ func (s *sokoban) loadLever(i int) {
 	}
 	s.grid = grid.NewWithString(string(data))
 	s.helpGrid = s.grid.Copied()
-	s.grid.Range(func(pos grid.Position, char grid.Rune, _ bool) (end bool) {
+	s.grid.Range(func(pos grid.Position, char rune, _ bool) (end bool) {
 		if char == me || char == meInSlot {
 			s.myPos = pos
 			return true
@@ -194,7 +180,7 @@ func (s *sokoban) moveBox(src, dest grid.Position) {
 
 func (s *sokoban) success() bool {
 	res := true
-	s.grid.Range(func(_ grid.Position, char grid.Rune, _ bool) (end bool) {
+	s.grid.Range(func(_ grid.Position, char rune, _ bool) (end bool) {
 		if char == box {
 			res = false
 			return true
@@ -206,7 +192,7 @@ func (s *sokoban) success() bool {
 
 func (s *sokoban) reset() {
 	s.grid.Copy(s.helpGrid)
-	s.grid.Range(func(pos grid.Position, char grid.Rune, _ bool) (end bool) {
+	s.grid.Range(func(pos grid.Position, char rune, _ bool) (end bool) {
 		if char == me || char == meInSlot {
 			s.myPos = pos
 			return true

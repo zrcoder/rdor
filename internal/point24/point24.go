@@ -20,8 +20,8 @@ const (
 )
 
 var (
-	resStyle     = lg.NewStyle().Foreground(color.Orange).Border(lg.RoundedBorder())
-	successStyle = lg.NewStyle().Foreground(color.Green).Border(lg.RoundedBorder())
+	resStyle     = lg.NewStyle().Foreground(color.Orange).Border(lg.NormalBorder(), false, false, true, false)
+	successStyle = lg.NewStyle().Foreground(color.Green).Border(lg.NormalBorder(), false, false, true, false)
 )
 
 type point24 struct {
@@ -69,6 +69,17 @@ func (p *point24) view() string {
 	resView := strconv.Itoa(p.num)
 	if p.oper != "" {
 		resView += p.oper
+	}
+	if p.num == 24 {
+		resView += "!"
+	}
+	switch len(resView) {
+	case 1:
+		resView = "  " + resView + "  "
+	case 2:
+		resView = " " + resView + "  "
+	default:
+		resView = " " + resView + " "
 	}
 	if p.num == dest {
 		resView = successStyle.Render(resView)

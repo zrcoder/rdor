@@ -28,8 +28,8 @@ type nPuzzle struct {
 	*game.Base
 
 	rd         *rand.Rand
-	grid       *grid.Grid[grid.Rune]
-	target     *grid.Grid[grid.Rune]
+	grid       *grid.Grid[rune]
+	target     *grid.Grid[rune]
 	buf        *strings.Builder
 	state      string
 	downKey    *key.Binding
@@ -94,11 +94,11 @@ func (p *nPuzzle) view() string {
 func (p *nPuzzle) set(i int) {
 	p.n = i + 3
 	p.state = style.Help.Render(fmt.Sprintf("%d✗%d", p.n, p.n))
-	g := make([][]grid.Rune, p.n)
+	g := make([][]rune, p.n)
 	for r := range g {
-		g[r] = make([]grid.Rune, p.n)
+		g[r] = make([]rune, p.n)
 		for c := range g[r] {
-			g[r][c] = grid.Rune(r*p.n + c + 1)
+			g[r][c] = rune(r*p.n + c + 1)
 		}
 	}
 	g[p.n-1][p.n-1] = 0
@@ -118,7 +118,7 @@ func (p *nPuzzle) boardView() string {
 	p.buf.WriteString("\n")
 	p.buf.WriteString("  " + strings.Repeat("•━━━━", p.n))
 	p.buf.WriteString("•\n")
-	p.grid.Range(func(pos grid.Position, char grid.Rune, isLineEnd bool) (end bool) {
+	p.grid.Range(func(pos grid.Position, char rune, isLineEnd bool) (end bool) {
 		s := "  "
 		if char != 0 {
 			r, c := int(char-1)/p.n, int(char-1)%p.n
