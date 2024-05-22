@@ -114,6 +114,10 @@ func (b *Base) RegisterLevels(total int, action SetLevelAction) {
 	}
 }
 
+func (b *Base) DisabledSetKey() {
+	b.keyMap.setLevel.SetEnabled(false)
+}
+
 func (b *Base) RegisterHelp(action ViewFunc) {
 	b.keyMap.help.SetEnabled(true)
 	b.helpFunc = action

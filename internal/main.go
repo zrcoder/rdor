@@ -9,6 +9,7 @@ import (
 	"github.com/zrcoder/rdor/internal/last"
 	"github.com/zrcoder/rdor/internal/maze"
 	"github.com/zrcoder/rdor/internal/npuzzle"
+	"github.com/zrcoder/rdor/internal/point24"
 	"github.com/zrcoder/rdor/internal/sokoban"
 	"github.com/zrcoder/rdor/pkg/game"
 	"github.com/zrcoder/rdor/pkg/style"
@@ -26,6 +27,7 @@ func Run() error {
 		sokoban.New(),
 		maze.New(),
 		npuzzle.New(),
+		point24.New(),
 		crossword.New(),
 		last.New(),
 	}

@@ -4,18 +4,24 @@ import (
 	"strconv"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	lg "github.com/charmbracelet/lipgloss"
 	"github.com/zrcoder/rdor/pkg/game"
 	"github.com/zrcoder/rdor/pkg/keyblock"
+	"github.com/zrcoder/rdor/pkg/style/color"
 )
 
 const (
-	name = "24 Points"
-
+	name  = "24 Points"
+	dest  = 24
 	plus  = "+"
 	minus = "-"
 	times = "×"
 	divid = "÷"
+)
+
+var (
+	resStyle     = lg.NewStyle().Foreground(color.Orange).Border(lg.RoundedBorder())
+	successStyle = lg.NewStyle().Foreground(color.Green).Border(lg.RoundedBorder())
 )
 
 type point24 struct {
@@ -25,7 +31,6 @@ type point24 struct {
 	nums   keyblock.KeysLine
 	opers  keyblock.KeysLine
 	num    int
-	point  int
 }
 
 func New() game.Game {
@@ -35,12 +40,9 @@ func New() game.Game {
 func (p *point24) Init() tea.Cmd {
 	p.levels = getLevers()
 	p.RegisterView(p.view)
-	p.RegisterView(p.view)
 	p.RegisterLevels(len(p.levels), p.setLever)
-	p.nums = keyblock.NewKeysLine("A", "S", "D", "F")
-	p.opers = keyblock.NewKeysLine("H", "J", "K", "L")
-	p.opers.SetDisplays(plus, minus, times, divid)
-	p.num = -1
+	p.DisabledSetKey()
+
 	return p.Base.Init()
 }
 
@@ -49,25 +51,13 @@ func (p *point24) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if b != p.Base {
 		return b, cmd
 	}
-	switch msg := msg.(type) {
-	case keyblock.PressMsg:
-		if msg.IsNumber() {
-			if msg.Pressed {
-				p.caculate(msg.Number)
-			}
-		} else {
-			if p.num != -1 {
-				p.oper = msg.Display
-			}
-		}
-	}
-	_, numCmd := p.nums.Update(msg)
-	_, operCmd := p.opers.Update(msg)
-	return p, tea.Batch(cmd, numCmd, operCmd)
+	p.nums.Update(msg)
+	p.opers.Update(msg)
+	return p, cmd
 }
 
 func (p *point24) view() string {
-	keysView := lipgloss.JoinHorizontal(lipgloss.Center,
+	keysView := lg.JoinHorizontal(lg.Center,
 		p.nums.View(),
 		"        ",
 		p.opers.View(),
@@ -78,9 +68,14 @@ func (p *point24) view() string {
 
 	resView := strconv.Itoa(p.num)
 	if p.oper != "" {
-		resView += " " + p.oper
+		resView += p.oper
 	}
-	return lipgloss.JoinVertical(lipgloss.Center,
+	if p.num == dest {
+		resView = successStyle.Render(resView)
+	} else {
+		resView = resStyle.Render(resView)
+	}
+	return lg.JoinVertical(lg.Center,
 		keysView,
 		"",
 		resView,
@@ -88,16 +83,32 @@ func (p *point24) view() string {
 }
 
 func (p *point24) setLever(i int) {
+	p.nums = keyblock.NewKeysLine(true, "a", "s", "d", "f")
+	p.nums.SetAction(p.numAction)
+	p.opers = keyblock.NewKeysLine(true, "h", "j", "k", "l")
+	p.opers.SetDisplays(plus, minus, times, divid)
+	p.opers.SetAction(p.operAction)
+	p.num = -1
 	level := p.levels[i]
-	p.nums.SetNumbers(level[:]...)
+	for i, v := range level {
+		p.nums.SetDisplay(i, strconv.Itoa(v))
+	}
 }
 
-func (p *point24) caculate(num int) {
+func (p *point24) operAction(key *keyblock.Key) {
+	p.oper = key.Display
+}
+
+func (p *point24) numAction(key *keyblock.Key) {
+	num, err := strconv.Atoi(key.Display)
+	if err != nil {
+		p.SetError(err)
+		return
+	}
 	if p.oper == "" {
 		p.num = num
 		return
 	}
-
 	switch p.oper {
 	case plus:
 		p.num += num
