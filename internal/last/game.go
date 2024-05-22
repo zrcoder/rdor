@@ -49,8 +49,8 @@ type last struct {
 	eatingPath *pathStack
 	*game.Base
 	rd          *rand.Rand
-	grid        *grid.Grid
-	helpGrid    *grid.Grid
+	grid        *grid.Grid[grid.Rune]
+	helpGrid    *grid.Grid[grid.Rune]
 	charDic     map[rune]string
 	buf         *strings.Builder
 	numbersKey  *key.Binding
@@ -124,8 +124,8 @@ func (l *last) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (l *last) view() string {
 	l.buf.Reset()
 
-	l.grid.Range(func(_ grid.Position, char rune, isLineEnd bool) (end bool) {
-		l.buf.WriteString(l.charDic[char])
+	l.grid.Range(func(_ grid.Position, char grid.Rune, isLineEnd bool) (end bool) {
+		l.buf.WriteString(l.charDic[rune(char)])
 		if isLineEnd {
 			l.buf.WriteByte('\n')
 		}
@@ -188,10 +188,10 @@ func (l *last) setted() {
 }
 
 func (l *last) genCells() {
-	l.grid = grid.New("")
-	g := make([][]rune, height)
+	l.grid = grid.NewWithString("")
+	g := make([][]grid.Rune, height)
 	for i := range g {
-		g[i] = make([]rune, width)
+		g[i] = make([]grid.Rune, width)
 	}
 	g[0][0] = me
 	g[0][1] = rival
@@ -209,8 +209,8 @@ func (l *last) genCells() {
 		g[ir][ic], g[jr][jc] = g[jr][jc], g[ir][ic]
 	})
 	l.grid.SetData(g)
-	l.helpGrid = grid.Copy(l.grid)
-	l.grid.Range(func(pos grid.Position, char rune, _ bool) (end bool) {
+	l.helpGrid = l.grid.Copied()
+	l.grid.Range(func(pos grid.Position, char grid.Rune, _ bool) (end bool) {
 		switch char {
 		case me:
 			l.players[0] = pos
@@ -232,7 +232,7 @@ func (l *last) lifeTransform() tea.Cmd {
 		return nil
 	}
 	cells := 0
-	l.grid.Range(func(pos grid.Position, char rune, _ bool) (end bool) {
+	l.grid.Range(func(pos grid.Position, char grid.Rune, _ bool) (end bool) {
 		l.helpGrid.Set(pos, l.grid.Get(pos))
 		if char == me || char == rival {
 			return
@@ -272,19 +272,19 @@ func (l *last) countAliveNeighbours(pos grid.Position) int {
 	return cnt
 }
 
-func (l *last) removeCells(g *grid.Grid, n int) {
+func (l *last) removeCells(g *grid.Grid[grid.Rune], n int) {
 	for ; n > 0; n-- {
 		l.changeCell(g, cell, blank)
 	}
 }
 
-func (l *last) addCells(g *grid.Grid, n int) {
+func (l *last) addCells(g *grid.Grid[grid.Rune], n int) {
 	for ; n > 0; n-- {
 		l.changeCell(g, blank, cell)
 	}
 }
 
-func (l *last) changeCell(g *grid.Grid, from, to rune) {
+func (l *last) changeCell(g *grid.Grid[grid.Rune], from, to grid.Rune) {
 	for {
 		i := l.rd.Intn(width * height)
 		pos := grid.Position{Row: i / width, Col: i % width}
@@ -338,7 +338,7 @@ func (l *last) bfs() {
 			cur = grid.TransForm(cur, d.Opposite())
 		}
 	}
-	isOpposite := func(char rune) bool {
+	isOpposite := func(char grid.Rune) bool {
 		if l.playerIndex == 0 {
 			return char == rival
 		}

@@ -40,8 +40,8 @@ type sokoban struct {
 	blocks map[rune]string
 	buf    *strings.Builder
 	*game.Base
-	grid     *grid.Grid
-	helpGrid *grid.Grid
+	grid     *grid.Grid[grid.Rune]
+	helpGrid *grid.Grid[grid.Rune]
 	upKey    *key.Binding
 	rightKey *key.Binding
 	downKey  *key.Binding
@@ -96,8 +96,8 @@ func (s *sokoban) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (s *sokoban) view() string {
 	s.buf.Reset()
-	s.grid.Range(func(_ grid.Position, char rune, isLineEnd bool) (end bool) {
-		s.buf.WriteString(s.blocks[char])
+	s.grid.Range(func(_ grid.Position, char grid.Rune, isLineEnd bool) (end bool) {
+		s.buf.WriteString(s.blocks[rune(char)])
 		if isLineEnd {
 			s.buf.WriteByte('\n')
 		}
@@ -128,9 +128,9 @@ func (s *sokoban) loadLever(i int) {
 	if err != nil {
 		panic(err)
 	}
-	s.grid = grid.New(string(data))
-	s.helpGrid = grid.Copy(s.grid)
-	s.grid.Range(func(pos grid.Position, char rune, _ bool) (end bool) {
+	s.grid = grid.NewWithString(string(data))
+	s.helpGrid = s.grid.Copied()
+	s.grid.Range(func(pos grid.Position, char grid.Rune, _ bool) (end bool) {
 		if char == me || char == meInSlot {
 			s.myPos = pos
 			return true
@@ -194,7 +194,7 @@ func (s *sokoban) moveBox(src, dest grid.Position) {
 
 func (s *sokoban) success() bool {
 	res := true
-	s.grid.Range(func(_ grid.Position, char rune, _ bool) (end bool) {
+	s.grid.Range(func(_ grid.Position, char grid.Rune, _ bool) (end bool) {
 		if char == box {
 			res = false
 			return true
@@ -206,7 +206,7 @@ func (s *sokoban) success() bool {
 
 func (s *sokoban) reset() {
 	s.grid.Copy(s.helpGrid)
-	s.grid.Range(func(pos grid.Position, char rune, _ bool) (end bool) {
+	s.grid.Range(func(pos grid.Position, char grid.Rune, _ bool) (end bool) {
 		if char == me || char == meInSlot {
 			s.myPos = pos
 			return true

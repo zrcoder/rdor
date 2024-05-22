@@ -47,22 +47,28 @@ type Word struct {
 	destPos      int
 }
 
-func (w Word) Fixed() bool {
-	return w.state == WordStateRight
+func (word *Word) View() string {
+	if word == nil {
+		return string(emptyWord)
+	}
+	bg := blankBg
+	s := string(word.char)
+	switch word.state {
+	case WordStateRight:
+		bg = rightBg
+	case WordStateWrong:
+		bg = wrongBg
+	case WordStateBlank:
+		s = string(emptyWord)
+	}
+	return bg.Render(s)
 }
 
-func (w *Word) isEmpty() bool {
-	return w == nil || w.char == emptyWord
+func (w *Word) Fixed() bool {
+	return w != nil && w.state == WordStateRight
 }
 
-type (
-	Grid       [size][size]*Word
-	Candidates []*Word
-)
-
-func (g *Grid) get(i, j int) *Word {
-	return g[i][j]
-}
+type Candidates []*Word
 
 func (cs Candidates) Set(word *Word) {
 	word.state = WordStateInit

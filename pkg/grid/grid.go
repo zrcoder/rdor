@@ -1,40 +1,79 @@
 package grid
 
-import "strings"
+import (
+	"strings"
+)
 
-type Grid struct {
-	data [][]rune
+type char interface {
+	View() string
+	comparable
 }
 
-func New(s string) *Grid {
-	lines := strings.Split(s, "\n")
-	data := make([][]rune, len(lines))
-	for i, line := range lines {
-		data[i] = []rune(line)
+type Rune rune
+
+func (r Rune) View() string {
+	return string(r)
+}
+
+type Grid[T char] struct {
+	rows int
+	cols int
+	data [][]T
+}
+
+func New[T char](rows, cols int) *Grid[T] {
+	data := make([][]T, rows)
+	for i := range data {
+		data[i] = make([]T, cols)
 	}
-	return &Grid{data: data}
+	return &Grid[T]{data: data, rows: rows, cols: cols}
 }
 
-func (g *Grid) SetData(data [][]rune) {
+func NewWithString(s string) *Grid[Rune] {
+	lines := strings.Split(s, "\n")
+	data := make([][]Rune, len(lines))
+	cols := 0
+	for i, line := range lines {
+		data[i] = make([]Rune, len(line))
+		cols = max(cols, len(line))
+		for j, r := range line {
+			data[i][j] = Rune(r)
+		}
+	}
+	return &Grid[Rune]{data: data, rows: len(lines), cols: cols}
+}
+
+func (g *Grid[T]) SetData(data [][]T) {
+	g.rows = len(data)
+	if g.rows == 0 {
+		return
+	}
+	g.cols = len(data[0])
 	g.data = data
 }
 
-func Copy(g *Grid) *Grid {
-	data := make([][]rune, len(g.data))
-	for r, row := range g.data {
-		data[r] = make([]rune, len(row))
-		copy(data[r], row)
+func (g *Grid[T]) Copied() *Grid[T] {
+	data := make([][]T, len(g.data))
+	for i, row := range g.data {
+		data[i] = make([]T, len(row))
+		copy(data[i], row)
 	}
-	return &Grid{data: data}
+	return &Grid[T]{data: data}
 }
 
-func (g *Grid) Copy(gg *Grid) {
+func (g *Grid[T]) Copy(gg *Grid[T]) {
 	for i, row := range gg.data {
 		copy(g.data[i], row)
 	}
 }
 
-func (g *Grid) Equal(f *Grid) bool {
+func (g *Grid[T]) CopyTo(gg *Grid[T]) {
+	for i, row := range g.data {
+		copy(gg.data[i], row)
+	}
+}
+
+func (g *Grid[T]) Equal(f *Grid[T]) bool {
 	if len(g.data) != len(f.data) {
 		return false
 	}
@@ -51,14 +90,14 @@ func (g *Grid) Equal(f *Grid) bool {
 	return true
 }
 
-func (g *Grid) OutBound(pos Position) bool {
+func (g *Grid[T]) OutBound(pos Position) bool {
 	return pos.Row < 0 || pos.Row >= len(g.data) ||
 		pos.Col < 0 || pos.Col >= len(g.data[pos.Row])
 }
 
-type RangeAction func(pos Position, char rune, isLineEnd bool) (end bool)
+type RangeAction[T char] func(pos Position, char T, isLineEnd bool) (end bool)
 
-func (g *Grid) Range(action RangeAction) {
+func (g *Grid[T]) Range(action RangeAction[T]) {
 	for i, row := range g.data {
 		for j, v := range row {
 			if action(Position{Row: i, Col: j}, v, j == len(row)-1) {
@@ -68,63 +107,76 @@ func (g *Grid) Range(action RangeAction) {
 	}
 }
 
-func (g *Grid) Get(p Position) rune {
+func (g *Grid[T]) Get(p Position) T {
 	return g.data[p.Row][p.Col]
 }
 
-func (g *Grid) Set(p Position, val rune) {
+func (g *Grid[T]) Getrc(row, col int) T {
+	return g.data[row][col]
+}
+
+func (g *Grid[T]) Set(p Position, val T) {
 	g.data[p.Row][p.Col] = val
 }
 
-func (g *Grid) String() string {
+func (g *Grid[T]) String() string {
 	buf := strings.Builder{}
 	for _, line := range g.data {
-		buf.WriteString(string(line))
+		for _, r := range line {
+			buf.WriteString(r.View())
+		}
 		buf.WriteByte('\n')
 	}
 	return buf.String()
 }
 
-type Position struct {
-	Row int
-	Col int
-}
-
-type Direction struct {
-	Dx int
-	Dy int
-}
-
-func (p Position) TransForm(d Direction) Position {
-	return TransForm(p, d)
-}
-
-func (d Direction) Scale(n int) Direction {
-	return Direction{Dx: d.Dx * n, Dy: d.Dy * n}
-}
-
-func (d Direction) Opposite() Direction {
-	return Direction{Dx: -d.Dx, Dy: -d.Dy}
-}
-
-func (d Direction) Rotate() Direction {
-	return Direction{Dx: -d.Dy, Dy: d.Dx}
-}
-
-var (
-	Up        = Direction{Dx: 0, Dy: -1}
-	Down      = Direction{Dx: 0, Dy: 1}
-	Left      = Direction{Dx: -1, Dy: 0}
-	Right     = Direction{Dx: 1, Dy: 0}
-	UpLeft    = Direction{Dx: -1, Dy: -1}
-	UpRight   = Direction{Dx: 1, Dy: -1}
-	DownLeft  = Direction{Dx: -1, Dy: 1}
-	DownRight = Direction{Dx: 1, Dy: 1}
-
-	NormalDirections = []Direction{Up, Down, Left, Right}
-	AllDirections    = []Direction{Up, Down, Left, Right, UpLeft, UpRight, DownLeft, DownRight}
-)
-
-func TransForm(p Position, d Direction) Position {
-	return Position{Row: p.Row + d.Dy, Col: p.Col + d.Dx}
+func (g *Grid[T]) Nearest(from Position, dirs []Direction, ok func(Position) bool, dir ...Direction) *Position {
+	var q []Position
+	seen := make(map[Position]bool, g.rows*g.cols)
+	invalid := func(p Position) bool {
+		return g.OutBound(p) || seen[p]
+	}
+	visPos := func(p Position) {
+		seen[p] = true
+		q = append(q, p)
+	}
+	visArea := func(startRow, startCol, endRow, endCol int) {
+		for i := startRow; i <= endRow; i++ {
+			for j := startCol; j <= endCol; j++ {
+				visPos(Position{Row: i, Col: j})
+			}
+		}
+	}
+	if dir == nil {
+		visPos(from)
+	} else {
+		switch dir[0].Opposite() {
+		case Left:
+			visArea(0, 0, g.rows-1, from.Col)
+		case Right:
+			visArea(0, from.Col, g.rows-1, g.cols-1)
+		case Down:
+			visArea(from.Row, 0, g.rows-1, g.cols-1)
+		case Up:
+			visArea(0, 0, from.Row, g.cols-1)
+		default:
+			// TODO, for other directions
+		}
+	}
+	for len(q) > 0 {
+		cur := q[0]
+		q = q[1:]
+		for _, d := range dirs {
+			next := cur.TransForm(d)
+			if invalid(next) {
+				continue
+			}
+			if ok(next) {
+				return &next
+			}
+			seen[next] = true
+			q = append(q, next)
+		}
+	}
+	return nil
 }
