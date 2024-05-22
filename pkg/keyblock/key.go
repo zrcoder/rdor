@@ -17,13 +17,17 @@ type Action func(key *Key)
 type Key struct {
 	Key     string
 	Display string
-	Once    bool
-	Action  Action
+	once    bool
+	action  Action
 	pressed bool
 }
 
-func NewKey(once bool, key string) *Key {
-	return &Key{Key: key, Once: once}
+func NewKey(key string) *Key {
+	return &Key{Key: key}
+}
+
+func (k *Key) SetOnce(b bool) {
+	k.once = true
 }
 
 func (k *Key) SetDisply(display string) {
@@ -31,7 +35,7 @@ func (k *Key) SetDisply(display string) {
 }
 
 func (k *Key) SetAction(action Action) {
-	k.Action = action
+	k.action = action
 }
 
 func (k *Key) Init() tea.Cmd { return nil }
@@ -41,10 +45,10 @@ func (k *Key) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		val := string(msg.Runes)
 		if val == k.Key {
-			if !k.pressed && k.Action != nil {
-				k.Action(k)
+			if !k.pressed && k.action != nil {
+				k.action(k)
 			}
-			if k.Once {
+			if k.once {
 				k.pressed = true
 			}
 		}
@@ -70,12 +74,18 @@ func (k *Key) View() string {
 
 type KeysLine []*Key
 
-func NewKeysLine(once bool, keys ...string) KeysLine {
+func NewKeysLine(keys ...string) KeysLine {
 	res := make([]*Key, len(keys))
 	for i, k := range keys {
-		res[i] = NewKey(once, k)
+		res[i] = NewKey(k)
 	}
 	return res
+}
+
+func (kl KeysLine) SetOnce(b bool) {
+	for i := range kl {
+		kl[i].SetOnce(b)
+	}
 }
 
 func (kl KeysLine) SetDisplays(displays ...string) {

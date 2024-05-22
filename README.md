@@ -18,6 +18,8 @@ Leveles based on [mazefiles](https://github.com/micromouseonline/mazefiles)
 
 ## N-Puzzle
 
+## 24 points
+
 ## 成语填字
 
 Leveles based on [vue-idiom-puzzle](https://github.com/huzongyao/vue-idiom-puzzle)

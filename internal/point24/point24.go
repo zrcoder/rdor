@@ -83,9 +83,11 @@ func (p *point24) view() string {
 }
 
 func (p *point24) setLever(i int) {
-	p.nums = keyblock.NewKeysLine(true, "a", "s", "d", "f")
+	p.nums = keyblock.NewKeysLine("a", "s", "d", "f")
+	p.nums.SetOnce(true)
 	p.nums.SetAction(p.numAction)
-	p.opers = keyblock.NewKeysLine(true, "h", "j", "k", "l")
+	p.opers = keyblock.NewKeysLine("h", "j", "k", "l")
+	p.opers.SetOnce(true)
 	p.opers.SetDisplays(plus, minus, times, divid)
 	p.opers.SetAction(p.operAction)
 	p.num = -1
