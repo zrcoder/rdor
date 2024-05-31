@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/zrcoder/rdor/internal/ballsort"
 	"github.com/zrcoder/rdor/internal/crossword"
 	"github.com/zrcoder/rdor/internal/hanoi"
 	"github.com/zrcoder/rdor/internal/last"
@@ -26,10 +27,11 @@ func Run() error {
 		hanoi.New(),
 		sokoban.New(),
 		maze.New(),
+		last.New(),
 		npuzzle.New(),
 		point24.New(),
 		crossword.New(),
-		last.New(),
+		ballsort.New(),
 	}
 	m := &rdor{
 		list: list.New(

@@ -118,6 +118,14 @@ func (b *Base) DisabledSetKey() {
 	b.keyMap.setLevel.SetEnabled(false)
 }
 
+func (b *Base) DisabledPrevKey() {
+	b.keyMap.previous.SetEnabled(false)
+}
+
+func (b *Base) DisabledNextKey() {
+	b.keyMap.next.SetEnabled(false)
+}
+
 func (b *Base) RegisterHelp(action ViewFunc) {
 	b.keyMap.help.SetEnabled(true)
 	b.helpFunc = action
@@ -126,7 +134,9 @@ func (b *Base) RegisterHelp(action ViewFunc) {
 func (b *Base) Init() tea.Cmd {
 	b.keysHelp = help.New()
 	b.keysHelp.ShowAll = true
-	b.setLevelAction(0)
+	if b.setLevelAction != nil {
+		b.setLevelAction(0)
+	}
 	b.newInput()
 	b.keysHelpStyle = lipgloss.NewStyle().Border(
 		lipgloss.ThickBorder()).
