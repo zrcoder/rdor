@@ -139,7 +139,7 @@ func (b *Base) Init() tea.Cmd {
 	}
 	b.newInput()
 	b.keysHelpStyle = lipgloss.NewStyle().Border(
-		lipgloss.ThickBorder()).
+		lipgloss.NormalBorder()).
 		Padding(0, 1).
 		BorderForeground(color.Faint)
 	return nil

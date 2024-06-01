@@ -51,12 +51,12 @@ func getCommonKeys() *KeyMap {
 		key.WithDisabled(),
 	)
 	back := key.NewBinding(
-		key.WithKeys("b"),
-		key.WithHelp("b", "back to parent"),
+		key.WithKeys("ctrl+h"),
+		key.WithHelp("ctrl+h", "back home"),
 	)
 	quit := key.NewBinding(
-		key.WithKeys("q"),
-		key.WithHelp("q", "quit"),
+		key.WithKeys("ctrl+c"),
+		key.WithHelp("ctrl+c", "quit"),
 	)
 	res := &KeyMap{
 		reset:    &reset,

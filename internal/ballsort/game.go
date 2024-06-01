@@ -13,7 +13,7 @@ import (
 
 var (
 	ballStyles    []lg.Style
-	fullTubeNames = []string{"E", "F", "G", "H", "I", "J", "K", "L", "M"}
+	fullTubeNames = []string{"A", "B", "C", "D", "E", "F", "G", "H", "I"}
 )
 
 const (
