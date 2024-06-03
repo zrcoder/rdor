@@ -81,7 +81,10 @@ func (g *Grid[T]) OutBound(pos Position) bool {
 		pos.Col < 0 || pos.Col >= len(g.data[pos.Row])
 }
 
-type RangeAction[T comparable] func(pos Position, char T, isLineEnd bool) (end bool)
+type (
+	RangeAction[T comparable]     func(pos Position, char T, isLineEnd bool) (end bool)
+	RangeRowsAction[T comparable] func(r int, row []T, isLast bool) (end bool)
+)
 
 func (g *Grid[T]) Range(action RangeAction[T]) {
 	for i, row := range g.data {
@@ -89,6 +92,14 @@ func (g *Grid[T]) Range(action RangeAction[T]) {
 			if action(Position{Row: i, Col: j}, v, j == len(row)-1) {
 				return
 			}
+		}
+	}
+}
+
+func (g *Grid[T]) RangeRows(action RangeRowsAction[T]) {
+	for r, row := range g.data {
+		if action(r, row, r == len(g.data)-1) {
+			return
 		}
 	}
 }
