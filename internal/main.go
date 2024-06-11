@@ -49,7 +49,7 @@ func Run() error {
 	for _, it := range items {
 		it.(game.Game).SetParent(m)
 	}
-	_, err := tea.NewProgram(m).Run()
+	_, err := tea.NewProgram(m, tea.WithAltScreen()).Run()
 	return err
 }
 
