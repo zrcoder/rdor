@@ -47,7 +47,7 @@ func (p *ballSort) Init() tea.Cmd {
 		lg.NewStyle().Foreground(color.Green),
 		lg.NewStyle().Foreground(color.Blue),
 		lg.NewStyle().Foreground(color.Violet),
-		lg.NewStyle().Foreground(color.Indigo),
+		lg.NewStyle(), // black/white as default
 	}
 	p.RegisterView(p.view)
 	p.RegisterLevels(levels, p.set)
