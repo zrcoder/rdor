@@ -30,6 +30,8 @@ Leveles based on [vue-idiom-puzzle](https://github.com/huzongyao/vue-idiom-puzzl
 
 ## Ball Sort
 
+![ballsort](./ballsort.png)
+
 ## Install
 
 ```shell
