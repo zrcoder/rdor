@@ -101,7 +101,7 @@ func (p *ballSort) set(levle int) {
 	}
 	p.balls = make([]*Ball, 0, p.colors*tubeCap)
 	for i := 0; i < p.colors; i++ {
-		for j := 0; j < tubeCap; j++ {
+		for range tubeCap {
 			p.balls = append(p.balls, &Ball{id: i})
 		}
 	}
