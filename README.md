@@ -40,11 +40,11 @@ go install github.com/zrcoder/rdor@latest
 
 ## Dependencies
 
-[bubbletea](https://github.com/charmbracelet/bubbletea)
+[bubbletea](https://charm.land/bubbletea/v2)
 
-[bubbles](https://github.com/charmbracelet/bubbles)
+[bubbles](https://charm.land/bubbles/v2)
 
-[lipgloss](https://github.com/charmbracelet/lipgloss)
+[lipgloss](https://charm.land/lipgloss/v2)
 
 ## License
 

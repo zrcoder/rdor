@@ -16,9 +16,9 @@ import (
 	"github.com/zrcoder/rdor/pkg/style"
 	"github.com/zrcoder/rdor/pkg/style/color"
 
-	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/list"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 func Run() error {
@@ -49,7 +49,7 @@ func Run() error {
 	for _, it := range items {
 		it.(game.Game).SetParent(m)
 	}
-	_, err := tea.NewProgram(m, tea.WithAltScreen()).Run()
+	_, err := tea.NewProgram(m).Run()
 	return err
 }
 
@@ -87,7 +87,7 @@ func (m rdor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.list.SetWidth(msg.Width)
 		return m, nil
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if msg.String() == "enter" {
 			it := m.list.SelectedItem().(game.Game)
 			return it, it.Init()
@@ -98,6 +98,8 @@ func (m rdor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m rdor) View() string {
-	return "\n" + m.list.View()
+func (m rdor) View() tea.View {
+	v := tea.NewView("\n" + m.list.View())
+	v.AltScreen = true
+	return v
 }

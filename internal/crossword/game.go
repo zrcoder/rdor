@@ -6,10 +6,10 @@ import (
 	"strings"
 	"unicode"
 
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
+	lg "charm.land/lipgloss/v2"
 	"github.com/BurntSushi/toml"
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	lg "github.com/charmbracelet/lipgloss"
 	"github.com/zrcoder/rdor/pkg/game"
 	"github.com/zrcoder/rdor/pkg/grid"
 	"github.com/zrcoder/rdor/pkg/keys"
@@ -50,7 +50,7 @@ func (c *crossword) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, keys.Up):
 			c.move(grid.Up)
@@ -61,12 +61,12 @@ func (c *crossword) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keys.Right):
 			c.move(grid.Right)
 		default:
-			if msg.Type == tea.KeyEnter {
+			if msg.Code == tea.KeyEnter {
 				c.pick(-1)
 				break
 			}
-			if len(msg.Runes) > 0 {
-				letter := byte(unicode.ToUpper(msg.Runes[0]))
+			if len(msg.Text) > 0 {
+				letter := byte(unicode.ToUpper(rune(msg.Text[0])))
 				if i, ok := c.Level.candidatesPos[letter]; ok {
 					c.pick(i)
 				}

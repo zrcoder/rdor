@@ -1,9 +1,10 @@
 package dialog
 
 import (
+	ic "image/color"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/zrcoder/rdor/pkg/style/color"
 )
 
@@ -66,7 +67,7 @@ func (d *Dialog) String() string {
 		lipgloss.Center, lipgloss.Center,
 		d.borderStyle.Render(d.message),
 		lipgloss.WithWhitespaceChars(d.whiteSpaceChars),
-		lipgloss.WithWhitespaceForeground(d.whiteSpaceForground),
+		lipgloss.WithWhitespaceStyle(lipgloss.NewStyle().Foreground(d.whiteSpaceForground)),
 	)
 }
 
@@ -116,7 +117,7 @@ const (
 )
 
 type Dialog struct {
-	whiteSpaceForground lipgloss.TerminalColor
+	whiteSpaceForground ic.Color
 	borderStyle         *lipgloss.Style
 	contentStyle        *lipgloss.Style
 	message             string

@@ -3,8 +3,8 @@ package point24
 import (
 	"strconv"
 
-	tea "github.com/charmbracelet/bubbletea"
-	lg "github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	lg "charm.land/lipgloss/v2"
 	"github.com/zrcoder/rdor/pkg/game"
 	"github.com/zrcoder/rdor/pkg/keyblock"
 	"github.com/zrcoder/rdor/pkg/style/color"
@@ -58,9 +58,9 @@ func (p *point24) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (p *point24) view() string {
 	keysView := lg.JoinHorizontal(lg.Center,
-		p.nums.View(),
+		p.nums.View().Content,
 		"        ",
-		p.opers.View(),
+		p.opers.View().Content,
 	)
 	if p.num == -1 {
 		return keysView

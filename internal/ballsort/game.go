@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
-	lg "github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	lg "charm.land/lipgloss/v2"
 	"github.com/zrcoder/rdor/pkg/game"
 	"github.com/zrcoder/rdor/pkg/style/color"
 )
@@ -67,7 +67,7 @@ func (p *ballSort) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		key := strings.ToUpper(msg.String())
 		if tube, ok := p.tubes[key]; ok {
 			p.pick(tube)

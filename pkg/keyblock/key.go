@@ -1,8 +1,8 @@
 package keyblock
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
-	lg "github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	lg "charm.land/lipgloss/v2"
 	"github.com/zrcoder/rdor/pkg/style/color"
 )
 
@@ -42,8 +42,8 @@ func (k *Key) Init() tea.Cmd { return nil }
 
 func (k *Key) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		val := string(msg.Runes)
+	case tea.KeyPressMsg:
+		val := msg.Text
 		if val == k.Key {
 			if !k.pressed && k.action != nil {
 				k.action(k)
@@ -56,7 +56,7 @@ func (k *Key) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return k, nil
 }
 
-func (k *Key) View() string {
+func (k *Key) View() tea.View {
 	display := k.Display
 	if display == "" {
 		display = k.Key
@@ -66,10 +66,10 @@ func (k *Key) View() string {
 	} else {
 		display = normalStyle.Render(display)
 	}
-	return lg.JoinVertical(lg.Center,
+	return tea.NewView(lg.JoinVertical(lg.Center,
 		display,
 		keyStyle.Render(k.Key),
-	)
+	))
 }
 
 type KeysLine []*Key
@@ -119,10 +119,10 @@ func (kl KeysLine) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return kl, nil
 }
 
-func (kl KeysLine) View() string {
+func (kl KeysLine) View() tea.View {
 	views := make([]string, len(kl))
 	for i, k := range kl {
-		views[i] = k.View()
+		views[i] = k.View().Content
 	}
-	return lg.JoinHorizontal(lg.Center, views...)
+	return tea.NewView(lg.JoinHorizontal(lg.Center, views...))
 }

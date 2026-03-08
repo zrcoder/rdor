@@ -1,11 +1,14 @@
 package color
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/compat"
+)
 
 var (
-	Faint = lipgloss.AdaptiveColor{
-		Light: "#D9DCCF",
-		Dark:  "#383838",
+	Faint = compat.AdaptiveColor{
+		Light: lipgloss.Color("#D9DCCF"),
+		Dark:  lipgloss.Color("#383838"),
 	}
 	White = lipgloss.Color("#ffffff")
 	// rainbow colors

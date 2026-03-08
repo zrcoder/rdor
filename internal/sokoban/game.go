@@ -10,9 +10,9 @@ import (
 	"github.com/zrcoder/rdor/pkg/keys"
 	"github.com/zrcoder/rdor/pkg/style/color"
 
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 const (
@@ -78,7 +78,7 @@ func (s *sokoban) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, *s.upKey):
 			s.move(grid.Up)

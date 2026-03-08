@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/huh"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/list"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/huh/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/zrcoder/rdor/pkg/dialog"
 	"github.com/zrcoder/rdor/pkg/style"
 	"github.com/zrcoder/rdor/pkg/style/color"
@@ -149,7 +149,7 @@ func (b *Base) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	orimsg := msg
 	switch msg := orimsg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		b.Err = nil
 		b.showFailure = false
 		b.showSuccess = false
@@ -175,7 +175,7 @@ func (b *Base) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			b.input.Placeholder(fmt.Sprintf("1-%d", b.levels))
 			b.input.Focus()
 			cmd = b.input.Focus()
-		case b.showInput && msg.Type == tea.KeyEnter:
+		case b.showInput && msg.Code == tea.KeyEnter:
 			b.showInput = false
 			b.input.Blur()
 			b.pickLevel(b.input.GetValue().(string))
@@ -188,13 +188,13 @@ func (b *Base) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		b.width = msg.Width
 		b.height = msg.Height
-		b.keysHelp.Width = msg.Width
+		b.keysHelp.SetWidth(msg.Width)
 	}
 	return b, cmd
 }
 
-func (b *Base) View() string {
-	return lipgloss.NewStyle().Padding(1, 3).Render(
+func (b *Base) View() tea.View {
+	return tea.NewView(lipgloss.NewStyle().Padding(1, 3).Render(
 		lipgloss.JoinVertical(lipgloss.Left,
 			style.Title.Render(b.name),
 			"",
@@ -204,7 +204,7 @@ func (b *Base) View() string {
 				b.keysHelpView(),
 			),
 		),
-	)
+	))
 }
 
 func (b *Base) pickLevel(s string) {

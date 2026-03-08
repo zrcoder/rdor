@@ -3,7 +3,7 @@ package crossword
 import (
 	"embed"
 
-	lg "github.com/charmbracelet/lipgloss"
+	lg "charm.land/lipgloss/v2"
 	"github.com/zrcoder/rdor/pkg/style/color"
 )
 
