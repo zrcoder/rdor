@@ -194,7 +194,7 @@ func (b *Base) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (b *Base) View() tea.View {
-	return tea.NewView(lipgloss.NewStyle().Padding(1, 3).Render(
+	view := tea.NewView(lipgloss.NewStyle().Padding(1, 3).Render(
 		lipgloss.JoinVertical(lipgloss.Left,
 			style.Title.Render(b.name),
 			"",
@@ -205,6 +205,8 @@ func (b *Base) View() tea.View {
 			),
 		),
 	))
+	view.AltScreen = true
+	return view
 }
 
 func (b *Base) pickLevel(s string) {
