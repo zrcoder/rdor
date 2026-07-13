@@ -11,6 +11,7 @@ import (
 	"github.com/zrcoder/rdor/internal/maze"
 	"github.com/zrcoder/rdor/internal/npuzzle"
 	"github.com/zrcoder/rdor/internal/point24"
+	"github.com/zrcoder/rdor/internal/slide"
 	"github.com/zrcoder/rdor/internal/sokoban"
 	"github.com/zrcoder/rdor/pkg/game"
 	"github.com/zrcoder/rdor/pkg/style"
@@ -24,6 +25,7 @@ import (
 func Run() error {
 	const title = "Welcome to rdor"
 	items := []list.Item{
+		slide.New(),
 		hanoi.New(),
 		sokoban.New(),
 		maze.New(),
