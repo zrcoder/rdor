@@ -3,7 +3,6 @@ package slide
 import (
 	icolor "image/color"
 	"math/rand"
-	"strings"
 	"time"
 
 	"github.com/zrcoder/rdor/pkg/game"
@@ -11,7 +10,8 @@ import (
 	"github.com/zrcoder/rdor/pkg/style/color"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
+	lg "charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/table"
 )
 
 const (
@@ -22,9 +22,17 @@ const (
 	player = 'p'
 	target = 't'
 	water  = 'w'
-	land   = 'l'
 	ice    = 'I'
 	block  = 'b'
+)
+
+type Dir int
+
+const (
+	DirUp Dir = iota
+	DirLeft
+	DirDown
+	DirRight
 )
 
 func New() game.Game {
@@ -34,36 +42,40 @@ func New() game.Game {
 type slide struct {
 	*game.Base
 	rd          *rand.Rand
-	bgStyle     lipgloss.Style
 	grid        *grid.Grid[rune]
 	helpGrid    *grid.Grid[rune]
-	buf         *strings.Builder
+	table       table.Table
 	playerPos   grid.Position
 	targetPos   grid.Position
 	charViewDic map[rune]string
 }
 
-type tickMsg time.Time
+type moveMsg = Dir
 
 func (s *slide) Init() tea.Cmd {
 	s.RegisterLevels(1, s.setLevel)
 	s.RegisterView(s.view)
-	s.bgStyle = lipgloss.NewStyle().Background(color.IceBlue)
+	s.table = *table.New().BorderRow(true).BaseStyle(lg.NewStyle().Background(color.IceBlue))
 	s.rd = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
-	s.buf = &strings.Builder{}
 	s.charViewDic = map[rune]string{
-		player: colorStr(color.White, " ⛇ "),
-		target: colorStr(color.Red, " ⚑ "),
-		block:  colorStr(color.Gray, " ▲ "),
-		water:  colorStr(color.LightBlue, " ⏺ "),
+		player: fgCell(color.White, " ⛇ "),
+		target: fgCell(color.Red, " ⚑ "),
+		block:  bgCell(color.Gray),
+		water:  bgCell(color.LightBlue),
 		ice:    "   ",
-		land:   colorStr(color.LimeGreen, " ◉ "),
 	}
+	s.Base.DisabledNextKey()
+	s.Base.DisabledPrevKey()
+	s.Base.DisabledSetKey()
 	return s.Base.Init()
 }
 
-func colorStr(c icolor.Color, text string) string {
-	return lipgloss.NewStyle().Foreground(c).Render(text)
+func fgCell(fg icolor.Color, text string) string {
+	return lg.NewStyle().Foreground(fg).Render(text)
+}
+
+func bgCell(bg icolor.Color) string {
+	return lg.NewStyle().Background(bg).Render("   ")
 }
 
 func (s *slide) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -73,33 +85,70 @@ func (s *slide) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
-	case tickMsg: // TODO
-		return s, tea.Batch(cmd)
+	case moveMsg:
+		cmd = s.move(msg)
 	case tea.KeyPressMsg:
-
 		switch msg.String() {
-		case "up":
-
-		case "down":
-
-		case "left":
-		case "right":
-
+		case "up", "k":
+			cmd = s.move(DirUp)
+		case "left", "h":
+			cmd = s.move(DirLeft)
+		case "down", "j":
+			cmd = s.move(DirDown)
+		case "right", "l":
+			cmd = s.move(DirRight)
 		}
 	}
 	return s, cmd
 }
 
+func (s *slide) move(dir Dir) tea.Cmd {
+	pos := s.playerPos
+	switch dir {
+	case DirUp:
+		pos.Row--
+	case DirLeft:
+		pos.Col--
+	case DirDown:
+		pos.Row++
+	case DirRight:
+		pos.Col++
+	}
+	if pos.Row < 0 || pos.Row >= size || pos.Col < 0 || pos.Col >= size {
+		return nil
+	}
+	dst := s.grid.Get(pos)
+	if dst == block {
+		return nil
+	}
+	if dst == water {
+		s.Base.SetFailure("Failed")
+		return nil
+	}
+	if dst == target {
+		s.Base.SetSuccess("Done")
+		return nil
+	}
+	s.grid.Set(s.playerPos, ice)
+	s.playerPos = pos
+	s.grid.Set(s.playerPos, player)
+	time.Sleep(300 * time.Millisecond)
+	return func() tea.Msg {
+		return dir
+	}
+}
+
 func (s *slide) view() string {
-	s.buf.Reset()
-	s.grid.Range(func(_ grid.Position, char rune, isLineEnd bool) (end bool) {
-		s.buf.WriteString(s.bgStyle.Render(s.charViewDic[char]))
-		if isLineEnd {
-			s.buf.WriteByte('\n')
+	s.table.ClearRows()
+	s.grid.RangeRows(func(r int, row []rune, isLast bool) (end bool) {
+		blocks := make([]string, len(row))
+		for i, v := range row {
+			blocks[i] = s.charViewDic[v]
 		}
-		return
+		s.table.Row(blocks...)
+		return false
 	})
-	return s.buf.String()
+	return s.table.String()
 }
 
 func (s *slide) setLevel(i int) {
@@ -119,10 +168,6 @@ func (s *slide) genScene() {
 		g[i/size][i%size] = block
 	}
 	from, lim = lim, 2+size*2
-	for i := from; i < lim; i++ {
-		g[i/size][i%size] = land
-	}
-	from, lim = lim, 2+size*2+size*2/3
 	for i := from; i < lim; i++ {
 		g[i/size][i%size] = water
 	}
@@ -145,11 +190,5 @@ func (s *slide) genScene() {
 			s.targetPos = pos
 		}
 		return
-	})
-}
-
-func (s *slide) doTick() tea.Cmd {
-	return tea.Tick(time.Second, func(t time.Time) tea.Msg {
-		return tickMsg(t)
 	})
 }
