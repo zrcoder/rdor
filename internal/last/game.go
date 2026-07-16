@@ -133,11 +133,12 @@ func (l *last) view() string {
 	})
 	l.buf.WriteString("\n")
 
-	l.buf.WriteString(l.currentLevel().shortView() + "\n")
+	l.buf.WriteString(l.currentLevel().shortView())
+	l.buf.WriteString("\n")
 	if l.setting {
 		l.buf.WriteString(style.Warn.Render("You go first? (y/n)"))
 	} else {
-		l.buf.WriteString(style.Help.Render("You:") + l.charDic[me] + style.Help.Render(" Rival:") + l.charDic[rival] + " ")
+		l.buf.WriteString(strings.Join([]string{style.Help.Render("You:"), l.charDic[me], style.Help.Render(" Rival:"), l.charDic[rival], " "}, ""))
 		l.buf.WriteString(style.Help.Render(fmt.Sprintf("Left: %2d  Turn:", l.commonCells+2)))
 		if l.playerIndex == 0 {
 			l.buf.WriteString(l.charDic[me])
