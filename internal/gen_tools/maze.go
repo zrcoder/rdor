@@ -32,7 +32,9 @@ var Names = []string{
 		}
 		if filepath.Ext(path) == txtExt {
 			name := d.Name()
-			buf.WriteString("\t" + strconv.Quote(name[:len(name)-len(txtExt)]) + ",\n")
+			buf.WriteString("\t")
+			buf.WriteString(strconv.Quote(name[:len(name)-len(txtExt)]))
+			buf.WriteString(",\n")
 		}
 		return nil
 	})
