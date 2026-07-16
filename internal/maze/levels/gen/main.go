@@ -8,6 +8,10 @@ import (
 	"strconv"
 )
 
+func main() {
+	makeMazeLevelsSumary()
+}
+
 func makeMazeLevelsSumary() {
 	dir := filepath.Join("internal", "maze", "levels")
 	const txtExt = ".txt"

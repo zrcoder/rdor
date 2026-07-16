@@ -7,7 +7,7 @@ import (
 	"github.com/zrcoder/rdor/internal"
 )
 
-//go:generate go run ./internal/gen_tools
+//go:generate go run ./internal/maze/levels/gen
 
 func main() {
 	if err := internal.Run(); err != nil {

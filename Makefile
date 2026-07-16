@@ -1,5 +1,7 @@
-.PHONY: fmt
-fmt:  ## Format code: go fmt + go fix + goimports
+.PHONY: fmt gen
+fmt:  ## Format code: go fmt + goimports
 	go fmt ./...
 	go fix ./...
 	goimports -w .
+gen:
+	go generate ./...
